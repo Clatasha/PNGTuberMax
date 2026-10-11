@@ -1,0 +1,2 @@
+<!-- Modified by Clatasha: neutral PNGTuber Max defaults. -->
+<Config><Common lastWidth="1280" lastHeight="720" lastAudioDevice="-1" useKeyboardHook="false" checkForUpdates="false" lastLayerSet="" menuOnStart="true" theme="Max" transparent="true" hardEdges="false" FXAA="true" vsync="true"><Theme name="Max" main_r="0.08" main_g="0.11" main_b="0.17" accent_r="0.26" accent_g="0.61" accent_b="1" font="res/monof55.ttf" fontSize="24"/></Common></Config>
