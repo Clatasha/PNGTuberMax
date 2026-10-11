@@ -17,3 +17,5 @@ Changes in this foundation: application/window/Help branding, executable output 
 Upstream personal IDE state, old itch.io upload scripts, and the editable upstream icon source were excluded. User-provided DERSPAWN assets were never imported. Runtime toolbar resources remain from upstream; application branding icons are replaced with an original M mark.
 
 No virtual camera, plush renderer or webcam tracking has been integrated in this foundation. No Windows binary has been compiled or runtime-verified here.
+
+2026-10-11 redesign/camera integration: original MaxUi control rendering, raised blue surfaces, branded header, new action icons and Inter/OFL font. MaxCamera publishes the clean scene into a new shared-memory channel; the bundled Clatasha DirectShow source has a distinct PNGTuber Max camera identity. Windows build/package automation and camera frame tests added. Front/back plush mode and face tracking remain planned.

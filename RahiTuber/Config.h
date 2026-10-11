@@ -407,8 +407,8 @@ struct UIConfig
 	bool _audioExpanded = true;
 	bool _audioDevListOpen = false;
 
-	std::string _theme = "Default";
-	std::string _fontName = "res/monof55.ttf";
+	std::string _theme = "Max";
+	std::string _fontName = "res/Inter.ttf";
 	float _fontSize = 26.f;
 	bool _fontReloadNeeded = false;
 
@@ -416,11 +416,12 @@ struct UIConfig
 	{
 		ImVec4 first = ImVec4(0.37f, 0.1f, 0.35f, 1.0f);
 		ImVec4 second = ImVec4(0.75f, 0.2f, 0.7f, 1.0f);
-		std::string fontName = "res/monof55.ttf";
+		std::string fontName = "res/Inter.ttf";
 		float fontSize = 26.f;
 	};
 
 	std::map<std::string, ThemeDef> _themes = {
+        {"Max", {{.08f,.11f,.17f,1.f},{.26f,.61f,1.f,1.f},"res/Inter.ttf",28.f}},
 		{"Default", { {0.37f, 0.1f, 0.35f, 1.0f}, {0.75f, 0.2f, 0.7f, 1.0f} }},
 		{"Sunset",  { {0.35f, 0.05f, 0.3f, 1.0f},  {0.6f, 0.2f, 0.2f, 1.0f} }},
 		{"Forest",  { {0.15f, 0.2f, 0.25f, 1.0f},  {0.2f, 0.5f, 0.3f, 1.0f} }},
@@ -429,7 +430,7 @@ struct UIConfig
 		{"Volcano", { {0.35f, 0.05f, 0.1f, 1.0f},  {0.9f, 0.6f, 0.2f, 1.0f} }},
 		{"Oxide",   { {0.25f, 0.35f, 0.4f, 1.0f},  {0.7f, 0.2f, 0.05f, 1.0f} }},
 		{"Pretty",  { {0.5f, 0.25f, 0.45f, 1.0f},  {0.7f, 0.75f, 1.0f, 1.0f} }},
-		{"Contrast",  { {0.3f, 0.2f, 0.4f, 1.0f},  {0.2f, 0.5f, 0.5f, 1.f}, "res/verdana.ttf", 30.f }},
+		{"Contrast",  { {0.3f, 0.2f, 0.4f, 1.0f},  {0.2f, 0.5f, 0.5f, 1.f}, "res/Inter.ttf", 30.f }},
 	};
 
 	std::string _lastTheme = "";

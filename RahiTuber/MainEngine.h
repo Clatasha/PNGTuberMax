@@ -16,6 +16,8 @@
 #include "imgui_internal.h"
 
 #include "defines.h"
+#include "MaxUi.h"
+#include "MaxCamera.h"
 
 #include <fstream>
 
@@ -161,6 +163,7 @@ public:
 #endif
 
 	Shader _FXAAShader;
+    MaxCamera camera;
 
 	void LoadCustomFont()
 	{
@@ -397,6 +400,7 @@ public:
 
 		appConfig->_menuRT.create(appConfig->_scrW, appConfig->_scrH, settings);
 		appConfig->_layersRT.create(appConfig->_scrW, appConfig->_scrH, settings);
+        appConfig->_layersRT.setSmooth(true);
 
 		float cornerGrabSize = 20 * appConfig->mainWindowScaling;
 
@@ -509,7 +513,7 @@ public:
 
 	void menuHelp(ImGuiStyle& style)
 	{
-		bool helpPressed = ImGui::Button("Help & Tips", { -1, ImGui::GetFrameHeight() });
+		bool helpPressed = MaxUi::Button("Help & Tips", { -1, ImGui::GetFrameHeight() });
 
 		sf::Vector2f dotpos = toSFVector(ImGui::GetItemRectMax());
 		dotpos -= sf::Vector2f(ImGui::GetFrameHeight()*0.52, ImGui::GetFrameHeight());
@@ -547,17 +551,17 @@ public:
 
             ImGui::SeparatorText("PNGTuber Max by Clatasha");
             ImGui::TextWrapped("Development foundation based on RahiTuber 14.42. Virtual camera and plush mode are planned additions.");
-            if (ImGui::Button("PNGTuber Max releases", { -1, UIUnit }))
+            if (MaxUi::Button("PNGTuber Max releases", { -1, UIUnit }))
                 OsOpenInShell("https://github.com/Clatasha/PNGTuberMax/releases");
             ToolTip("Opens PNGTuber Max releases on GitHub.", &appConfig->_hoverTimer);
 
-			if (ImGui::Button("FAQ (web link)", { -1, UIUnit }))
+			if (MaxUi::Button("FAQ (web link)", { -1, UIUnit }))
 			{
 				OsOpenInShell("https://itch.io/t/3967527/faq");
 			}
 			ToolTip("Opens the RahiTuber FAQ page in your default web browser.", "https://itch.io/t/3967527/faq", &appConfig->_hoverTimer);
 
-			if (ImGui::Button("Tutorials (web link)", { -1, UIUnit }))
+			if (MaxUi::Button("Tutorials (web link)", { -1, UIUnit }))
 			{
 				OsOpenInShell("https://itch.io/t/3967451/tutorials");
 			}
@@ -605,7 +609,7 @@ public:
 			ImGui::TextWrapped("PNGTuber Max 0.1.0 foundation / RahiTuber engine %.3f", appConfig->_versionNumber);
 
 			ImGui::Separator();
-			if (ImGui::Button("OK", { -1,20 }))
+			if (MaxUi::Button("OK", { -1,20 }))
 			{
 				ImGui::CloseCurrentPopup();
 			}
@@ -617,7 +621,7 @@ public:
 	{
 		float UIUnit = ImGui::GetFrameHeight();
 
-		if (ImGui::Button("Preferences", { -1, ImGui::GetFrameHeight() }))
+		if (MaxUi::Button("Preferences", { -1, ImGui::GetFrameHeight() }))
 		{
 			float h = ImGui::GetWindowHeight();
 			ImGui::SetNextWindowSize({ UIUnit * 22, h });
@@ -711,7 +715,7 @@ public:
 			uiConfig->_advancedMenuTopRow = rowTop;
 
 
-			if (ImGui::Button("OK", { -1, ImGui::GetFrameHeight() }))
+			if (MaxUi::Button("OK", { -1, ImGui::GetFrameHeight() }))
 			{
 				ImGui::CloseCurrentPopup();
 			}
@@ -1153,7 +1157,7 @@ public:
 					ImVec4 imCol = toImVec4(appConfig->_bgColor);
 					ImGui::TableNextColumn();
 					ImGui::BeginDisabled(appConfig->_transparent);
-					if (ImGui::Button("Background Color", { -1, ImGui::GetFrameHeight() })) {
+					if (MaxUi::Button("Background Color", { -1, ImGui::GetFrameHeight() })) {
 						ImGui::OpenPopup("BGColorEdit");
 					}
 
@@ -1332,7 +1336,7 @@ public:
 					ToolTip("Recommended when creating more complex 'paper doll' style rigs", "New layers begin without any default movement or additional sprites", &appConfig->_hoverTimer);
 
 					ImGui::TableNextColumn();
-					if (ImGui::Button("Check PNGTuber Max releases"))
+					if (MaxUi::Button("Check PNGTuber Max releases"))
                         OsOpenInShell("https://github.com/Clatasha/PNGTuberMax/releases");
                     ToolTip("Release checking is manual in this development foundation.", &appConfig->_hoverTimer);
 
@@ -1448,14 +1452,14 @@ public:
 							if(g_key_names.count(key))
 							btnName = g_key_names[key];
 						}
-						if(ImGui::Button(btnName.c_str()))
+						if(MaxUi::Button(btnName.c_str()))
 						{
 							appConfig->_pttKey = sf::Keyboard::Scan::Scancode::Unknown;
 						}
 					}
 					else
 					{
-						ImGui::Button("Record Key");
+						MaxUi::Button("Record Key");
 					}
 				}
 
@@ -1540,7 +1544,7 @@ public:
 
 		ImGui::SameLine();
 		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 1,1 });
-		if (ImGui::ImageButton("refreshInputs", *appConfig->_textureMan.GetIcon(TextureManager::ICON_REFRESH), { ImGui::GetFrameHeightWithSpacing(), ImGui::GetFrameHeightWithSpacing() }, sf::Color::Transparent, toSFColor(style.Colors[ImGuiCol_Text])) || devListFirstOpen)
+		if (MaxUi::IconButton("refreshInputs", *appConfig->_textureMan.GetIcon(TextureManager::ICON_REFRESH), { ImGui::GetFrameHeightWithSpacing(), ImGui::GetFrameHeightWithSpacing() }, sf::Color::Transparent, toSFColor(style.Colors[ImGuiCol_Text])) || devListFirstOpen)
 			ListAudioDevices(true);
 		ImGui::PopStyleVar();
 		ToolTip("Refresh input device list", &appConfig->_hoverTimer);
@@ -1708,7 +1712,7 @@ public:
 
 	void menuPresets(ImGuiStyle& style)
 	{
-		if (ImGui::Button("Window Presets", { -1,ImGui::GetFrameHeight() }))
+		if (MaxUi::Button("Window Presets", { -1,ImGui::GetFrameHeight() }))
 		{
 			if (appConfig->_menuWindow.isOpen())
 			{
@@ -1749,7 +1753,7 @@ public:
 				ImGui::EndCombo();
 			}
 			ImGui::SameLine();
-			if (ImGui::Button("Load", { -1,ImGui::GetFrameHeight() }) && uiConfig->_presetNames.size())
+			if (MaxUi::Button("Load", { -1,ImGui::GetFrameHeight() }) && uiConfig->_presetNames.size())
 			{
 				//gameConfig->loadFromSettingsFile(gameConfig->m_presetNames[gameConfig->m_presetIdx]);
 				if (appConfig->_loader->loadPreset(uiConfig->_presetNames[uiConfig->_presetIdx]))
@@ -1772,13 +1776,13 @@ public:
 			ImGui::TextColored(style.Colors[ImGuiCol_Text], "Save Preset");
 			ImGui::InputText("Name", uiConfig->_settingsFileBoxName.data(), 30 * appConfig->scalingFactor);
 			ImGui::SameLine();
-			if (ImGui::Button("x", { ImGui::GetFrameHeight(),ImGui::GetFrameHeight() }))
+			if (MaxUi::Button("x", { ImGui::GetFrameHeight(),ImGui::GetFrameHeight() }))
 			{
 				uiConfig->_settingsFileBoxName.clear();
 				uiConfig->_settingsFileBoxName.resize(30);
 			}
 			ImGui::SameLine();
-			if (ImGui::Button("Use Current", { -1,ImGui::GetFrameHeight() }) && uiConfig->_presetNames.size())
+			if (MaxUi::Button("Use Current", { -1,ImGui::GetFrameHeight() }) && uiConfig->_presetNames.size())
 			{
 				uiConfig->_settingsFileBoxName.clear();
 				uiConfig->_settingsFileBoxName.resize(30);
@@ -1809,7 +1813,7 @@ public:
 
 			std::string name(uiConfig->_settingsFileBoxName.data());
 
-			if ((name != "") && ImGui::Button(saveName.c_str(), { -1,ImGui::GetFrameHeight() }))
+			if ((name != "") && MaxUi::Button(saveName.c_str(), { -1,ImGui::GetFrameHeight() }))
 			{
 				if (std::find(uiConfig->_presetNames.begin(), uiConfig->_presetNames.end(), name) == uiConfig->_presetNames.end())
 				{
@@ -1915,7 +1919,9 @@ public:
 		style.Colors[ImGuiCol_BorderShadow] = col_shadow;
 		style.Colors[ImGuiCol_Border] = col_border;
 
-		uiConfig->_styleLoaded = true;
+		MaxUi::ApplyStyle(style, appConfig->scalingFactor);
+        backdropCol = sf::Color(12,20,35);
+        uiConfig->_styleLoaded = true;
 
 		float UIUnit = ImGui::GetFrameHeight();
 
@@ -2004,6 +2010,12 @@ public:
 		}
 
 		ImDrawList* dList = ImGui::GetWindowDrawList();
+        MaxUi::BrandHeader();
+#ifdef _WIN32
+        if(MaxUi::Button(camera.On()?"Stop virtual camera":"Start virtual camera")){if(camera.On())camera.Stop();else camera.Start();}
+        ImGui::SameLine();if(MaxUi::Button("Camera setup"))camera.Setup(appConfig->_appLocation);
+        ImGui::TextColored(ImVec4(.55f,.73f,.95f,1),"%s",camera.Status().c_str());
+#endif
 
 		std::string menuShowName = "Close Menu (Esc)";
 		std::string menuPopName = "Popout Menu";
@@ -2019,12 +2031,12 @@ public:
 		ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, { 2,0 });
 		ImGui::BeginTable("##menuVisibility", 2, ImGuiTableFlags_NoBordersInBody | ImGuiTableFlags_SizingStretchSame);
 		ImGui::TableNextColumn();
-		if (ImGui::Button(menuShowName.c_str(), { -1, UIUnit }))
+		if (MaxUi::Button(menuShowName.c_str(), { -1, UIUnit }))
 		{
 			uiConfig->_menuShowing = !uiConfig->_menuShowing;
 		}
 		ImGui::TableNextColumn();
-		if (ImGui::Button(menuPopName.c_str(), { -1, UIUnit }))
+		if (MaxUi::Button(menuPopName.c_str(), { -1, UIUnit }))
 		{
 			appConfig->_menuPopPending = !appConfig->_menuPopPending;
 			layerMan->CloseAllPopups();
@@ -2033,7 +2045,7 @@ public:
 		ImGui::PopStyleVar();
 
 		//	FULLSCREEN
-		if (ImGui::Button(appConfig->_isFullScreen ? "Exit Fullscreen (F11)" : "Fullscreen (F11)", { -1, UIUnit }))
+		if (MaxUi::Button(appConfig->_isFullScreen ? "Exit Fullscreen (F11)" : "Fullscreen (F11)", { -1, UIUnit }))
 		{
 			swapFullScreen();
 		}
@@ -2077,13 +2089,14 @@ public:
 		ImGui::PushStyleColor(ImGuiCol_Button, style.Colors[ImGuiCol_FrameBg]);
 		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, { 0.5f + 0.2f * pulse, 0.f, 0.f, 1.0f });
 		ImGui::PushStyleColor(ImGuiCol_ButtonActive, { 0.3f, 0.f, 0.f, 1.0f });
-		if (ImGui::Button("Exit PNGTuber Max", { -1, UIUnit }))
+		if (MaxUi::Button("Exit PNGTuber Max", { -1, UIUnit }))
 		{
 			if (appConfig->_menuWindow.isOpen())
 				appConfig->_lastMenuPopPosition = appConfig->_menuWindow.getPosition();
 
 			appConfig->_menuWindow.close();
-			appConfig->_window.close();
+			camera.Stop();
+            appConfig->_window.close();
 		}
 		ImGui::PopStyleColor(3);
 
@@ -2311,6 +2324,7 @@ public:
 		}
 
 		appConfig->_layersRT.display();
+        camera.Publish(appConfig->_layersRT.getTexture());
 
 #if _DEBUGRENDER
 		if (outputMenuDbg)
@@ -3226,7 +3240,7 @@ public:
 		auto& io = ImGui::GetIO();
 
 		auto oldFnt = uiConfig->_fontName;
-		uiConfig->_fontName = "res/verdana.ttf";
+		uiConfig->_fontName = "res/Inter.ttf";
 
 		LoadCustomFont();
 		sf::Color backCol;
@@ -3289,7 +3303,7 @@ If you accept, please click the Accept button.
 			}
 
 			ImGui::SameLine();
-			if (ImGui::Button("Accept"))
+			if (MaxUi::Button("Accept"))
 			{
 				startWindowOpen = false;
 			}

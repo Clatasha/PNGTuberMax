@@ -62,6 +62,10 @@ add_subdirectory(RahiTuber)
 #
 # Add test project
 #
-if(MSVC)
+option(PNGMAX_BUILD_LEGACY_TESTS "Build inherited legacy tests" OFF)
+if(MSVC AND PNGMAX_BUILD_LEGACY_TESTS)
     add_subdirectory(RahiTuber_Test)
 endif()
+
+add_executable(MaxCameraFrameTests tests/CameraFrameTests.cpp)
+target_compile_features(MaxCameraFrameTests PRIVATE cxx_std_17)

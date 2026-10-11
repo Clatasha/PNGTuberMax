@@ -8,11 +8,11 @@ This product includes software developed by Rahisaurus.
 
 ## Current status
 
-This repository contains the initial branded source foundation, based on upstream RahiTuber 14.42. It is not a downloadable, validated PNGTuber Max release yet.
+This repository contains the blue-interface and virtual-camera development preview, based on upstream RahiTuber 14.42. Windows preview builds are produced in [Actions](https://github.com/Clatasha/PNGTuberMax/actions). These are development artifacts; receiving-app and visual compatibility still require Windows testing.
 
-The inherited engine includes PNG layers, folders, talking/blinking/screaming states, sprite sheets, voice-driven mouth shapes, inherited motion and physics, masks/blend modes, and shortcuts. User-facing titles and Help branding now identify PNGTuber Max by Clatasha. A neutral blue theme is supplied. Upstream update checks are disabled; release links point to this repository.
+The inherited engine includes PNG layers, folders, talking/blinking/screaming states, sprite sheets, voice-driven mouth shapes, inherited motion and physics, masks/blend modes, and shortcuts. User-facing titles and Help branding now identify PNGTuber Max by Clatasha. The Max design uses raised blue controls, soft shadows, edge highlights, Inter typography, a branded header and 30 original action icons. Upstream update checks are disabled; release links point to this repository.
 
-The standalone virtual camera, webcam face tracking, plush-style front/back PNG mode, and live eye/mouth cutouts are **planned additions**. They have not been integrated into this source foundation.
+The Windows virtual camera publisher and one-time hidden installer are now integrated. They send the clean avatar scene at 640x480 / 30 FPS, without the editor interface. The DirectShow camera backend remains experimental. Webcam face tracking, plush-style front/back PNG mode, and live eye/mouth cutouts are **planned additions**.
 
 ## Build on Windows
 
@@ -22,10 +22,11 @@ Install Visual Studio 2022 with Desktop development with C++, a Windows SDK, Git
 git clone --recurse-submodules https://github.com/Clatasha/PNGTuberMax.git
 cd PNGTuberMax
 cmake -S . -B build -G "Visual Studio 17 2022" -A x64
-cmake --build build --config Release --target RahiTuber
+cmake --build build --config Release --target RahiTuber MaxCameraFrameTests
+.\scripts\Package-Windows.ps1
 ```
 
-The internal target/directory names remain RahiTuber to limit unnecessary changes. The application executable is named `PNGTuberMax.exe`. Keep its resources, configuration, version file and required runtime libraries together. A complete Windows package still needs build and runtime validation.
+The internal target/directory names remain RahiTuber to limit unnecessary changes. The application executable is named `PNGTuberMax.exe`. Keep its resources, configuration, version file and required runtime libraries together. The packaging script bundles the camera components, notices, assets and MSVC runtime. It requires the Windows .NET Framework compiler and Visual Studio redistributable files.
 
 ## Personal artwork
 

@@ -428,3 +428,6 @@ DERSPAWN*/
 updateQuery.txt
 !.github/**
 !RahiTuber/config.xml
+
+!camera/third_party/DirectShowLib-source.zip
+!camera/third_party/DirectShowLib.dll

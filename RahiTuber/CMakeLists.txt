@@ -53,6 +53,9 @@ target_sources(RahiTuber PRIVATE
     xmlConfig.h
     websocket.h
     MainEngine.h
+    MaxUi.h
+    MaxCamera.h
+    CameraFrame.h
     GamePad.h
     GamePad.cpp
     ffwdClock.h

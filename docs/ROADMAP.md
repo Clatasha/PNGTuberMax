@@ -12,9 +12,9 @@
 ## First usable build
 
 - [ ] Package the inherited editor as one standalone application.
-- [ ] Light UI redesign: spacing, clearer sections, consistent icons and typography.
-- [ ] Integrate native virtual-camera output from the clean character render.
-- [ ] Provide one-time camera installation with an in-app result, without repeated admin prompts.
+- [x] Light UI redesign: spacing, clearer sections, consistent icons and typography.
+- [x] Integrate native virtual-camera output from the clean character render.
+- [x] Provide one-time camera installation with an in-app result, without repeated admin prompts.
 - [ ] Verify receiving-app compatibility and publish a tested preview.
 
 ## PNG puppet modes

@@ -6,6 +6,7 @@
 #include <sstream>
 
 #include "defines.h"
+#include "MaxUi.h"
 #include "Shaders.h"
 
 #include "EffectManager.h"
@@ -578,12 +579,12 @@ void LayerManager::DrawOldLayerSetUI()
 
 		ImGui::TableNextColumn();
 
-		_loadXMLOpen = ImGui::Button("...", { 30 * uiScale,ImGui::GetFrameHeight() });
+		_loadXMLOpen = MaxUi::Button("...", { 30 * uiScale,ImGui::GetFrameHeight() });
 		ToolTip("Browse for a layer set (.xml) file.", &_appConfig->_hoverTimer);
 
 		ImGui::TableNextColumn();
 
-		_saveXMLOpen = ImGui::Button(_loadedXMLExists ? "Overwrite" : "Save", { uiScale * 80 , ImGui::GetFrameHeight() }) && !_loadedXMLRelPath.empty();
+		_saveXMLOpen = MaxUi::Button(_loadedXMLExists ? "Overwrite" : "Save", { uiScale * 80 , ImGui::GetFrameHeight() }) && !_loadedXMLRelPath.empty();
 		if (_saveXMLOpen)
 		{
 			_fullLoadedXMLPath = fs::absolute(_loadedXMLAbsDirectory).append(_layerSetName).replace_extension(".xml").string();
@@ -598,7 +599,7 @@ void LayerManager::DrawOldLayerSetUI()
 		if (_loadedXMLExists)
 		{
 			ImGui::PushID("loadXMLBtn"); {
-				_reloadXMLOpen = ImGui::Button("Load", { uiScale * 80 , ImGui::GetFrameHeight() });
+				_reloadXMLOpen = MaxUi::Button("Load", { uiScale * 80 , ImGui::GetFrameHeight() });
 			}ImGui::PopID();
 		}
 		ToolTip("Load the specified layer set.", &_appConfig->_hoverTimer);
@@ -610,19 +611,19 @@ void LayerManager::DrawOldLayerSetUI()
 	{
 		ImGui::TableNextColumn();
 
-		_newLayerOpen = ImGui::Button("Add Layer", { -1, ImGui::GetFrameHeight() });
+		_newLayerOpen = MaxUi::Button("Add Layer", { -1, ImGui::GetFrameHeight() });
 		ToolTip("Adds a new layer to the list.", &_appConfig->_hoverTimer);
 
 		ImGui::TableNextColumn();
-		_newFolderOpen = ImGui::Button("Add Folder", { -1, ImGui::GetFrameHeight() });
+		_newFolderOpen = MaxUi::Button("Add Folder", { -1, ImGui::GetFrameHeight() });
 		ToolTip("Adds a new layer to the list.", &_appConfig->_hoverTimer);
 
 		ImGui::TableNextColumn();
-		_clearLayersOpen = ImGui::Button("Remove All", { -1, ImGui::GetFrameHeight() });
+		_clearLayersOpen = MaxUi::Button("Remove All", { -1, ImGui::GetFrameHeight() });
 		ToolTip("Removes all layers from the list.", &_appConfig->_hoverTimer);
 
 		ImGui::TableNextColumn();
-		_editStatesOpen = ImGui::Button("States", { -1, ImGui::GetFrameHeight() });
+		_editStatesOpen = MaxUi::Button("States", { -1, ImGui::GetFrameHeight() });
 		ToolTip("Opens the States setup menu.", &_appConfig->_hoverTimer);
 
 		ImGui::EndTable();
@@ -702,7 +703,7 @@ void LayerManager::DoMenuBarLogic()
 	ImGui::PushID("newXMLBtn"); {
 		static imgui_ext::file_browser_modal newFolderSelect("New Layer Set");
 		newFolderSelect._acceptedExt = { ".xml" };
-		//_newXMLOpen = ImGui::Button("New", { -1, ImGui::GetFrameHeight() });
+		//_newXMLOpen = MaxUi::Button("New", { -1, ImGui::GetFrameHeight() });
 
 		bool showOpenWindow = _newXMLOpen;
 
@@ -754,7 +755,7 @@ void LayerManager::DoMenuBarLogic()
 	ImGui::PushID("openXMLBtn"); {
 		static imgui_ext::file_browser_modal fileBrowserXML("Load Layer Set", &_mergingLayerSet);
 		fileBrowserXML._acceptedExt = { ".xml" };
-		//_loadXMLOpen = ImGui::Button("Open", { -1, ImGui::GetFrameHeight() });
+		//_loadXMLOpen = MaxUi::Button("Open", { -1, ImGui::GetFrameHeight() });
 		if (_loadXMLOpen)
 		{
 			_loadingBrowserPath = _fullLoadedXMLPath;
@@ -812,7 +813,7 @@ This works best when all your sprite images are located in a subfolder of the XM
 			ImGui::TextWrapped("This function creates a version of your layer set where all file paths are relative to the location of RahiTuber.\n\n\
 This works best when all your sprite images are located in a subfolder of RahiTuber's directory.\n\nCopy them there now?");
 
-		if (ImGui::Button("Copy files and create portable XML", { -1, ImGui::GetFrameHeight() }))
+		if (MaxUi::Button("Copy files and create portable XML", { -1, ImGui::GetFrameHeight() }))
 		{
 			_saveAsXMLOpen = true;
 			_saveLayersPortable = true;
@@ -837,7 +838,7 @@ This works best when all your sprite images are located in a subfolder of RahiTu
 		ImGui::Checkbox("Store old pivots to keep physics consistent", &_storePreCropPivot);
 		ToolTip("With this enabled, each sprite will store its old pivot so that\nold physics settings continue to work.\nThis is not needed if you're optimising before setting up physics.", &_appConfig->_hoverTimer);
 
-		if (ImGui::Button("Optimise", { -1, ImGui::GetFrameHeight() }))
+		if (MaxUi::Button("Optimise", { -1, ImGui::GetFrameHeight() }))
 		{
 			_saveAsXMLOpen = true;
 			_saveLayersPortable = true;
@@ -959,22 +960,22 @@ void LayerManager::DrawButtonsLayerSetUI()
 	if (ImGui::BeginTable("##toolButtons", 11, ImGuiTableFlags_NoBordersInBody | ImGuiTableFlags_SizingStretchProp))
 	{
 		ImGui::TableNextColumn();
-		_newXMLOpen = ImGui::ImageButton("##newFile", *_newFileIcon, sf::Vector2f(btnSize, btnSize), sf::Color::Transparent, btnColor);
+		_newXMLOpen = MaxUi::IconButton("##newFile", *_newFileIcon, sf::Vector2f(btnSize, btnSize), sf::Color::Transparent, btnColor);
 		ToolTip("New", "Start a new layer set.\n(discards unsaved changes!)", &_appConfig->_hoverTimer);
 		ImGui::TableNextColumn();
-		_loadXMLOpen = ImGui::ImageButton("##Open", *_openFileIcon, sf::Vector2f(btnSize, btnSize), sf::Color::Transparent, btnColor);
+		_loadXMLOpen = MaxUi::IconButton("##Open", *_openFileIcon, sf::Vector2f(btnSize, btnSize), sf::Color::Transparent, btnColor);
 		ToolTip("Open", "Browse for a layer set (.xml) file.", &_appConfig->_hoverTimer);
 		ImGui::TableNextColumn();
-		_saveXMLOpen = ImGui::ImageButton("##save", *_saveIcon, sf::Vector2f(btnSize, btnSize), sf::Color::Transparent, btnColor);
+		_saveXMLOpen = MaxUi::IconButton("##save", *_saveIcon, sf::Vector2f(btnSize, btnSize), sf::Color::Transparent, btnColor);
 		ToolTip("Save", "Save the current layer set.", &_appConfig->_hoverTimer);
 		ImGui::TableNextColumn();
-		_saveAsXMLOpen = ImGui::ImageButton("##saveAs", *_saveAsIcon, sf::Vector2f(btnSize, btnSize), sf::Color::Transparent, btnColor);
+		_saveAsXMLOpen = MaxUi::IconButton("##saveAs", *_saveAsIcon, sf::Vector2f(btnSize, btnSize), sf::Color::Transparent, btnColor);
 		ToolTip("Save As", "Save the current layer set with a new name.", &_appConfig->_hoverTimer);
 		ImGui::TableNextColumn();
-		_makePortableOpen = ImGui::ImageButton("##makePortable", *_makePortableIcon, sf::Vector2f(btnSize, btnSize), sf::Color::Transparent, btnColor);
+		_makePortableOpen = MaxUi::IconButton("##makePortable", *_makePortableIcon, sf::Vector2f(btnSize, btnSize), sf::Color::Transparent, btnColor);
 		ToolTip("Model Options", "Options for porting and optimising your model", &_appConfig->_hoverTimer);
 		ImGui::TableNextColumn();
-		_reloadXMLOpen = ImGui::ImageButton("##reload", *_reloadIcon, sf::Vector2f(btnSize, btnSize), sf::Color::Transparent, btnColor);
+		_reloadXMLOpen = MaxUi::IconButton("##reload", *_reloadIcon, sf::Vector2f(btnSize, btnSize), sf::Color::Transparent, btnColor);
 		ToolTip("Reload", "Reload the specified layer set.\n(discards unsaved changes!)", &_appConfig->_hoverTimer);
 
 		ImGui::TableNextColumn();
@@ -982,10 +983,10 @@ void LayerManager::DrawButtonsLayerSetUI()
 		ImGui::Text("|");
 
 		ImGui::TableNextColumn();
-		_newLayerOpen = ImGui::ImageButton("##newLayer", *_newLayerIcon, sf::Vector2f(btnSize, btnSize), sf::Color::Transparent, btnColor);
+		_newLayerOpen = MaxUi::IconButton("##newLayer", *_newLayerIcon, sf::Vector2f(btnSize, btnSize), sf::Color::Transparent, btnColor);
 		ToolTip("Add Layer", "Add a new Layer to the top of the list.", &_appConfig->_hoverTimer);
 		ImGui::TableNextColumn();
-		_newFolderOpen = ImGui::ImageButton("##newFolder", *_newFolderIcon, sf::Vector2f(btnSize, btnSize), sf::Color::Transparent, btnColor);
+		_newFolderOpen = MaxUi::IconButton("##newFolder", *_newFolderIcon, sf::Vector2f(btnSize, btnSize), sf::Color::Transparent, btnColor);
 		ToolTip("Add Folder", "Add a new Folder to the top of the list.", &_appConfig->_hoverTimer);
 
 		ImGui::TableNextColumn();
@@ -993,7 +994,7 @@ void LayerManager::DrawButtonsLayerSetUI()
 		ImGui::Text("|");
 
 		ImGui::TableNextColumn();
-		_editStatesOpen = ImGui::ImageButton("##states", *_statesIcon, sf::Vector2f(btnSize, btnSize), sf::Color::Transparent, btnColor);
+		_editStatesOpen = MaxUi::IconButton("##states", *_statesIcon, sf::Vector2f(btnSize, btnSize), sf::Color::Transparent, btnColor);
 		ToolTip("States", "Configure the States for this Layer Set.", &_appConfig->_hoverTimer);
 
 		ImGui::EndTable();
@@ -1097,7 +1098,7 @@ void LayerManager::DrawGUI(ImGuiStyle& style, float maxHeight)
 						ImGui::TableNextColumn();
 							
 						ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0.5));
-						if (ImGui::ImageButton("visible", t.second ? *_eyeOpenIcon : *_eyeClosedIcon, headerBtnSize, sf::Color::Transparent, btnColor))
+						if (MaxUi::IconButton("visible", t.second ? *_eyeOpenIcon : *_eyeClosedIcon, headerBtnSize, sf::Color::Transparent, btnColor))
 						{
 							t.second = !t.second;
 							_tagDefaults[t.first] = t.second;
@@ -1105,14 +1106,14 @@ void LayerManager::DrawGUI(ImGuiStyle& style, float maxHeight)
 
 						ImGui::TableNextColumn();
 
-						if (ImGui::ImageButton("filter", _tagFilters[t.first] ? *_filterOnIcon : *_filterOffIcon, headerBtnSize, sf::Color::Transparent, btnColor))
+						if (MaxUi::IconButton("filter", _tagFilters[t.first] ? *_filterOnIcon : *_filterOffIcon, headerBtnSize, sf::Color::Transparent, btnColor))
 						{
 							_tagFilters[t.first] = !_tagFilters[t.first];
 						}
 
 						ImGui::TableNextColumn();
 
-						if (ImGui::ImageButton("delete", *_delIcon, headerBtnSize, sf::Color::Transparent, btnColor))
+						if (MaxUi::IconButton("delete", *_delIcon, headerBtnSize, sf::Color::Transparent, btnColor))
 						{
 							deleteTag = t.first;
 							_tagDeleteOpen = true;
@@ -1368,7 +1369,7 @@ void LayerManager::DrawCanvasPresetGUI()
 
 		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 1, 1 });
 
-		if (ImGui::ImageButton("##NewPreset", *_plusIcon, sf::Vector2f(btnSize, btnSize), sf::Color::Transparent, btnColor))
+		if (MaxUi::IconButton("##NewPreset", *_plusIcon, sf::Vector2f(btnSize, btnSize), sf::Color::Transparent, btnColor))
 		{
 			_globalPresets.push_back(GlobalPreset());
 			_currentGlobalPreset = _globalPresets.size() - 1;
@@ -1383,7 +1384,7 @@ void LayerManager::DrawCanvasPresetGUI()
 		ImGui::TableNextColumn();
 		//ImGui::SameLine(btnSize*0.6);
 
-		if (ImGui::ImageButton("##RenamePreset", *_editIcon, sf::Vector2f(btnSize, btnSize), sf::Color::Transparent, btnColor))
+		if (MaxUi::IconButton("##RenamePreset", *_editIcon, sf::Vector2f(btnSize, btnSize), sf::Color::Transparent, btnColor))
 		{
 			if (_currentGlobalPreset != -1 && _currentGlobalPreset < _globalPresets.size())
 			{
@@ -1396,7 +1397,7 @@ void LayerManager::DrawCanvasPresetGUI()
 		ImGui::TableNextColumn();
 		//ImGui::SameLine(btnSize * 0.6);
 
-		if (ImGui::ImageButton("##SavePreset", *_saveIcon, sf::Vector2f(btnSize, btnSize), sf::Color::Transparent, btnColor))
+		if (MaxUi::IconButton("##SavePreset", *_saveIcon, sf::Vector2f(btnSize, btnSize), sf::Color::Transparent, btnColor))
 		{
 			if (_currentGlobalPreset != -1 && _currentGlobalPreset < _globalPresets.size())
 			{
@@ -1412,7 +1413,7 @@ void LayerManager::DrawCanvasPresetGUI()
 		//ImGui::SameLine(btnSize * 0.6);
 
 		ImVec4 delCol = PushDeleteStyle();
-		if (ImGui::ImageButton("##DeletePreset", *_delIcon, sf::Vector2f(btnSize, btnSize), sf::Color::Transparent, toSFColor(delCol)))
+		if (MaxUi::IconButton("##DeletePreset", *_delIcon, sf::Vector2f(btnSize, btnSize), sf::Color::Transparent, toSFColor(delCol)))
 		{
 			if (_currentGlobalPreset != -1 && _currentGlobalPreset < _globalPresets.size())
 				_globalPresets.erase(_globalPresets.begin() + _currentGlobalPreset);
@@ -1473,7 +1474,7 @@ void LayerManager::DrawCanvasPresetGUI()
 			thisPreset._name = UTF8ToANSI(inputStr);
 			ImGui::SameLine();
 
-			bool saved = ImGui::Button("Save");
+			bool saved = MaxUi::Button("Save");
 			if (saved || edited)
 			{
 				_canvasPresetMenuOpen = false;
@@ -2298,7 +2299,7 @@ bool LayerManager::SaveLayers(const std::string& settingsFileName, bool makePort
 					checkReOptimise = false;
 				}
 
-				if (ImGui::Button("No, skip those ones"))
+				if (MaxUi::Button("No, skip those ones"))
 				{
 					skipOptimised = true;
 					checkReOptimise = false;
@@ -4058,7 +4059,7 @@ void LayerManager::DrawStatesGUI()
 		ToolTip("Ignore events from joystick analog axis movement", &_appConfig->_hoverTimer);
 		ImGui::Columns();
 
-		if (ImGui::Button("Add"))
+		if (MaxUi::Button("Add"))
 		{
 			_states.push_back(StatesInfo());
 			for (auto& l : _layers)
@@ -4180,7 +4181,7 @@ void LayerManager::DrawStatesGUI()
 					if (state._awaitingHotkey)
 						btnName = "(press a key)";
 					ImGui::PushID("recordKeyBtn"); {
-						if (ImGui::Button(btnName.c_str(), { -1 ,ImGui::GetFrameHeight() * 2 }) && !_waitingForHotkey)
+						if (MaxUi::Button(btnName.c_str(), { -1 ,ImGui::GetFrameHeight() * 2 }) && !_waitingForHotkey)
 						{
 							_pendingKey = sf::Keyboard::Unknown;
 							_pendingKeyScan = sf::Keyboard::Scan::Unknown;
@@ -4200,7 +4201,7 @@ void LayerManager::DrawStatesGUI()
 						}
 						ToolTip("Set a hotkey", &_appConfig->_hoverTimer);
 
-						if (ImGui::Button("Clear", { -1 ,ImGui::GetFrameHeight() * 1 }))
+						if (MaxUi::Button("Clear", { -1 ,ImGui::GetFrameHeight() * 1 }))
 						{
 							state._jDir = 0.f;
 							state._jButton = -1;
@@ -4584,7 +4585,7 @@ void LayerManager::DrawStatesGUI()
 				ImGui::SetCursorPos(delButtonPos);
 				ImGuiStyle& style = ImGui::GetStyle();
 				PushDeleteStyle();
-				if (ImGui::Button("Delete"))
+				if (MaxUi::Button("Delete"))
 				{
 					RemoveStateFromOrder(&state);
 					_states.erase(_states.begin() + stateIdx);
@@ -4599,7 +4600,7 @@ void LayerManager::DrawStatesGUI()
 
 				ImGui::SetCursorPos(dupeButtonPos);
 				ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 1,1 });
-				if (ImGui::ImageButton("dupeBtn", *_dupeIcon, toSFVector(btnSize), sf::Color::Transparent, btnColor))
+				if (MaxUi::IconButton("dupeBtn", *_dupeIcon, toSFVector(btnSize), sf::Color::Transparent, btnColor))
 				{
 					_states.push_back(state);
 					if(_states.back()._name != "")
@@ -4609,7 +4610,7 @@ void LayerManager::DrawStatesGUI()
 
 				ImGui::SetCursorPos(renameButtonPos);
 				ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 1,1 });
-				if (ImGui::ImageButton("renameBtn", *_editIcon, toSFVector(btnSize), sf::Color::Transparent, btnColor))
+				if (MaxUi::IconButton("renameBtn", *_editIcon, toSFVector(btnSize), sf::Color::Transparent, btnColor))
 				{
 					state._renaming = !state._renaming;
 				}
@@ -4698,7 +4699,7 @@ void LayerManager::DrawHTTPCopyHelpers(LayerManager::StatesInfo& state, ImVec4& 
 				}, _copyStateNames, &_appConfig->_hoverTimer, false);
 
 			ImGui::TableNextColumn();
-			if (ImGui::Button("Copy request"))
+			if (MaxUi::Button("Copy request"))
 			{
 				ImGui::SetClipboardText(state._webRequest.c_str());
 			}
@@ -6511,7 +6512,7 @@ bool LayerManager::LayerInfo::DrawGUI(ImGuiStyle& style, int layerID)
 
 							if (ImGui::BeginTabItem("Constant"))
 							{
-								if (ImGui::Button("Reset"))
+								if (MaxUi::Button("Reset"))
 								{
 									_storedConstantScale = { 1.f, 1.f };
 									_storedConstantPos = { 0,0 };
@@ -6592,7 +6593,7 @@ bool LayerManager::LayerInfo::DrawGUI(ImGuiStyle& style, int layerID)
 					ImGui::SetCursorPos(subHeaderBtnPos);
 					ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0,0 });
 					ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 1,1 });
-					if (ImGui::ImageButton("allowIndivMotion", _allowIndividualMotion ? *_lockOpenIcon : *_lockClosedIcon, headerBtnSize, sf::Color::Transparent, btnColor))
+					if (MaxUi::IconButton("allowIndivMotion", _allowIndividualMotion ? *_lockOpenIcon : *_lockClosedIcon, headerBtnSize, sf::Color::Transparent, btnColor))
 					{
 						_allowIndividualMotion = !_allowIndividualMotion;
 					}
@@ -6723,7 +6724,7 @@ bool LayerManager::LayerInfo::DrawGUI(ImGuiStyle& style, int layerID)
 					}
 					ToolTip("Sets the pivot point (range 0 - 1. 0 = top/left, 1 =  bottom/right)", &_parent->_appConfig->_hoverTimer, true);
 					ImGui::SameLine();
-					if (ImGui::Button(_pivotPx ? "px" : "%"))
+					if (MaxUi::Button(_pivotPx ? "px" : "%"))
 					{
 						_pivotPx = !_pivotPx;
 					}
@@ -6784,7 +6785,7 @@ bool LayerManager::LayerInfo::DrawGUI(ImGuiStyle& style, int layerID)
 			pinPos.x -= UIUnit;
 			ImGui::SetCursorPos(pinPos);
 			ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
-			if (ImGui::ImageButton("pinloaded", _pinLoaded ? *_pinIcon : *_pinOffIcon, headerBtnSize, sf::Color::Transparent, btnColor))
+			if (MaxUi::IconButton("pinloaded", _pinLoaded ? *_pinIcon : *_pinOffIcon, headerBtnSize, sf::Color::Transparent, btnColor))
 			{
 				_pinLoaded = !_pinLoaded;
 
@@ -6796,7 +6797,7 @@ bool LayerManager::LayerInfo::DrawGUI(ImGuiStyle& style, int layerID)
 		
 		ImGui::SetCursorPos(headerButtonsPos);
 		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0.5));
-		if (ImGui::ImageButton("visible", _visible ? *_eyeOpenIcon : *_eyeClosedIcon, headerBtnSize, sf::Color::Transparent, btnColor))
+		if (MaxUi::IconButton("visible", _visible ? *_eyeOpenIcon : *_eyeClosedIcon, headerBtnSize, sf::Color::Transparent, btnColor))
 		{
 			_visible = !_visible;
 
@@ -6829,17 +6830,17 @@ bool LayerManager::LayerInfo::DrawGUI(ImGuiStyle& style, int layerID)
 
 		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0.25));
 		ImGui::SameLine();
-		if (ImGui::ImageButton("upbtn", *_upIcon, headerBtnSize, sf::Color::Transparent, btnColor))
+		if (MaxUi::IconButton("upbtn", *_upIcon, headerBtnSize, sf::Color::Transparent, btnColor))
 			_parent->MoveLayerUp(this);
 		ToolTip("Move the layer up", &_parent->_appConfig->_hoverTimer);
 
 		ImGui::SameLine();
-		if (ImGui::ImageButton("dnbtn", *_dnIcon, headerBtnSize, sf::Color::Transparent, btnColor))
+		if (MaxUi::IconButton("dnbtn", *_dnIcon, headerBtnSize, sf::Color::Transparent, btnColor))
 			_parent->MoveLayerDown(this);
 		ToolTip("Move the layer down", &_parent->_appConfig->_hoverTimer);
 
 		ImGui::SameLine();
-		if (ImGui::ImageButton("renamebtn", *_editIcon, headerBtnSize, sf::Color::Transparent, btnColor))
+		if (MaxUi::IconButton("renamebtn", *_editIcon, headerBtnSize, sf::Color::Transparent, btnColor))
 		{
 			_renamingString = _name;
 			_renamePopupOpen = true;
@@ -6850,7 +6851,7 @@ bool LayerManager::LayerInfo::DrawGUI(ImGuiStyle& style, int layerID)
 		ToolTip("Rename or Color the layer", &_parent->_appConfig->_hoverTimer);
 
 		ImGui::SameLine();
-		if (ImGui::ImageButton("dupebtn", *_dupeIcon, headerBtnSize, sf::Color::Transparent, btnColor))
+		if (MaxUi::IconButton("dupebtn", *_dupeIcon, headerBtnSize, sf::Color::Transparent, btnColor))
 		{
 			allowContinue = false;
 			_parent->AddLayer(this);
@@ -6866,7 +6867,7 @@ bool LayerManager::LayerInfo::DrawGUI(ImGuiStyle& style, int layerID)
 		ImGui::PushStyleColor(ImGuiCol_ButtonActive, { 0.8,0.4,0.4,1.0 });
 		ImGui::PushStyleColor(ImGuiCol_Text, { 255 / 255,200 / 255,170 / 255, 1 });
 		ImGui::PushID("deleteBtn"); {
-			if (ImGui::ImageButton("delbtn", *_delIcon, headerBtnSize, sf::Color::Transparent, sf::Color(255, 200, 170)))
+			if (MaxUi::IconButton("delbtn", *_delIcon, headerBtnSize, sf::Color::Transparent, sf::Color(255, 200, 170)))
 			{
 				allowContinue = false;
 				_parent->RemoveLayer(this);
@@ -6927,7 +6928,7 @@ bool LayerManager::LayerInfo::DrawGUI(ImGuiStyle& style, int layerID)
 
 				ImGui::Unindent(treeIndent * layerParents.size());
 
-				if (ImGui::Button("Close"))
+				if (MaxUi::Button("Close"))
 				{
 					_inheritanceGraphOpen = false;
 					_inheritanceGraphWasOpen = false;
@@ -7266,7 +7267,7 @@ void LayerManager::LayerInfo::LayerSelectCombo(const char* comboID, std::string&
 			bool offClicked = false;
 			ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.3,0,0,1.0));
 			if (selectID == "")
-				offClicked = ImGui::Button("(Off)", {comboW, UIUnit});
+				offClicked = MaxUi::Button("(Off)", {comboW, UIUnit});
 			else
 				offClicked = LesserButton("(Off)", {comboW, UIUnit}, false);
 			ImGui::PopStyleColor();
@@ -7302,7 +7303,7 @@ void LayerManager::LayerInfo::LayerSelectCombo(const char* comboID, std::string&
 
 					bool clicked = false;
 					if (selectID == layer._id)
-						clicked = ImGui::Button(ANSIToUTF8(layer._name).c_str(), { comboW, UIUnit });
+						clicked = MaxUi::Button(ANSIToUTF8(layer._name).c_str(), { comboW, UIUnit });
 					else
 						clicked = LesserButton(ANSIToUTF8(layer._name).c_str(), { comboW, UIUnit }, false);
 
@@ -7357,7 +7358,7 @@ void LayerManager::LayerInfo::DrawRenamePopupGUI()
 		_renamingString = UTF8ToANSI(inputStr);
 		ImGui::SameLine();
 
-		bool saved = ImGui::Button("Save");
+		bool saved = MaxUi::Button("Save");
 
 		ImGui::Separator();
 
@@ -7423,14 +7424,14 @@ void LayerManager::LayerInfo::DrawRenamePopupGUI()
 
 			lastCursorPos = ImGui::GetCursorPos().x + textWidth;
 
-			if (ImGui::Button(tagLabel.c_str()))
+			if (MaxUi::Button(tagLabel.c_str()))
 			{
 				_tags.erase(tag);
 			}
 			tagCount++;
 		}
 
-		if (ImGui::Button("+"))
+		if (MaxUi::Button("+"))
 		{
 			_addingTag = true;
 			tagBuf[0] = 0;
@@ -7521,7 +7522,7 @@ void LayerManager::LayerInfo::SpriteSelectGUI(SpriteType UISprite, float imgBtnW
 		ImGui::SameLine();
 		auto offsetBtnPos = ImGui::GetCursorPos();
 		ImGui::PushID(animID.c_str()); {
-			_sprites[UISprite].spriteOpen |= ImGui::ImageButton(animID.c_str(), *_animIcon, sf::Vector2f(animBtnWidth, animBtnWidth), sf::Color::Transparent, btnColor);
+			_sprites[UISprite].spriteOpen |= MaxUi::IconButton(animID.c_str(), *_animIcon, sf::Vector2f(animBtnWidth, animBtnWidth), sf::Color::Transparent, btnColor);
 			ToolTip("Animation Settings", &_parent->_appConfig->_hoverTimer);
 			AnimPopup(*_sprites[UISprite], _sprites[UISprite].spriteOpen, _sprites[UISprite].oldSpriteOpen);
 		}ImGui::PopID();
@@ -7544,7 +7545,7 @@ void LayerManager::LayerInfo::SpriteSelectGUI(SpriteType UISprite, float imgBtnW
 			offsetBtnPos.y += ImGui::GetFrameHeightWithSpacing() * 1.2;
 			ImGui::SetCursorPos(offsetBtnPos);
 			ImGui::PushID(offsetID.c_str()); {
-				_sprites[UISprite].offsetOpen |= ImGui::ImageButton(offsetID.c_str(), *_moveIcon, sf::Vector2f(animBtnWidth, animBtnWidth), sf::Color::Transparent, btnColor);
+				_sprites[UISprite].offsetOpen |= MaxUi::IconButton(offsetID.c_str(), *_moveIcon, sf::Vector2f(animBtnWidth, animBtnWidth), sf::Color::Transparent, btnColor);
 				ToolTip("Offset Settings", &_parent->_appConfig->_hoverTimer);
 				OffsetPopup(*_sprites[UISprite], _sprites[UISprite].offsetOpen, _sprites[UISprite].oldOffsetOpen);
 			}ImGui::PopID();
@@ -7597,7 +7598,7 @@ void LayerManager::LayerInfo::ImageBrowsePreviewBtn(bool& openFlag, const char* 
 		fileBrowserIdle.SetStartingDir(fileBrowserIdle.GetLastChosenDir());
 
 	ImGui::BeginDisabled(reloading);
-	openFlag = ImGui::ImageButton(btnname, *btnIcon, { imgBtnWidth,imgBtnWidth }, sf::Color::Transparent, btnCol);
+	openFlag = MaxUi::IconButton(btnname, *btnIcon, { imgBtnWidth,imgBtnWidth }, sf::Color::Transparent, btnCol);
 
 	std::error_code ec;
 	fs::path browsePath = path;
@@ -7697,7 +7698,7 @@ void LayerManager::LayerInfo::AnimPopup(SpriteSheet& anim, bool& open, bool& old
 		ImGui::TextWrapped("If you need help creating a sprite sheet, here's a free tool by Final Parsec:");
 		ImGui::PopStyleColor();
 		ImGui::NextColumn();
-		if (ImGui::Button("Sprite Sheet\nTool (web link)"))
+		if (MaxUi::Button("Sprite Sheet\nTool (web link)"))
 		{
 			OsOpenInShell("https://www.finalparsec.com/tools/sprite_sheet_maker");
 		}
@@ -7761,7 +7762,7 @@ void LayerManager::LayerInfo::AnimPopup(SpriteSheet& anim, bool& open, bool& old
 		}
 		ImGui::SameLine();
 
-		if (ImGui::Button("Save"))
+		if (MaxUi::Button("Save"))
 		{
 			anim.SetAttributes(_animFCount, _animGrid[0], _animGrid[1], _animFPS, anim._frameSizeSetting );
 			anim._loop = _animLoop;
