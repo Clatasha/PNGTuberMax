@@ -10,7 +10,7 @@
 #include <shellapi.h>
 #endif
 class MaxCamera {
-    bool on_=false;std::string status_="Camera output off";sf::RenderTexture output_;sf::Clock clock_;
+    bool on_=false;std::string status_="Camera output off";sf::RenderTexture output_;sf::Clock clock_;MaxCameraFrame::Cadence cadence_;
 #ifdef _WIN32
     HANDLE map_=nullptr,lock_=nullptr,owner_=nullptr;unsigned char* memory_=nullptr;
 #endif
@@ -43,7 +43,7 @@ public:
         if(map_)memory_=static_cast<unsigned char*>(MapViewOfFile(map_,FILE_MAP_WRITE,0,0,64+MaxCameraFrame::Bytes));
         lock_=CreateMutexA(nullptr,FALSE,"Local\\PNGTuberMaxFrameLock");
         if(!memory_||!lock_||!output_.create(MaxCameraFrame::Width,MaxCameraFrame::Height)){Stop();status_="Could not create camera output";return false;}
-        on_=true;clock_.restart();status_="Sending 640 x 480 / 30 FPS";return true;
+        on_=true;clock_.restart();cadence_={};status_="Sending 640 x 480 / 30 FPS";return true;
 #else
         status_="Virtual camera is supported on Windows in this preview";return false;
 #endif
@@ -57,7 +57,7 @@ public:
     }
     void Publish(const sf::Texture& scene) {
 #ifdef _WIN32
-        if(!on_||clock_.getElapsedTime().asMicroseconds()<33333)return;clock_.restart();auto size=scene.getSize();if(!size.x||!size.y)return;
+        if(!on_||!cadence_.Due(clock_.getElapsedTime().asMicroseconds()))return;auto size=scene.getSize();if(!size.x||!size.y)return;
         output_.clear(sf::Color(12,20,35));sf::Sprite sprite(scene);float scale=std::min(float(MaxCameraFrame::Width)/size.x,float(MaxCameraFrame::Height)/size.y);sprite.setScale(scale,scale);sprite.setPosition((MaxCameraFrame::Width-size.x*scale)*.5f,(MaxCameraFrame::Height-size.y*scale)*.5f);
         sf::RenderStates state;state.blendMode=sf::BlendMode(sf::BlendMode::One,sf::BlendMode::OneMinusSrcAlpha,sf::BlendMode::Add,sf::BlendMode::One,sf::BlendMode::OneMinusSrcAlpha,sf::BlendMode::Add);output_.draw(sprite,state);output_.display();auto image=output_.getTexture().copyToImage();
         if(image.getSize().x!=MaxCameraFrame::Width||image.getSize().y!=MaxCameraFrame::Height){Stop();status_="Camera frame readback failed";return;}

@@ -24,6 +24,11 @@ template<typename... Args> inline bool IconButton(Args&&... args) {
     auto* draw=ImGui::GetWindowDrawList();ImDrawListSplitter channels;channels.Split(draw,2);channels.SetCurrentChannel(draw,1);
     bool hit=ImGui::ImageButton(std::forward<Args>(args)...);FinishRaised(draw,channels);return hit;
 }
+// Explicit overload accepts the brace-initialized sizes used by inherited controls.
+inline bool IconButton(const char* id,const sf::Texture& texture,const sf::Vector2f& size,const sf::Color& bg=sf::Color::Transparent,const sf::Color& tint=sf::Color::White) {
+    auto* draw=ImGui::GetWindowDrawList();ImDrawListSplitter channels;channels.Split(draw,2);channels.SetCurrentChannel(draw,1);
+    bool hit=ImGui::ImageButton(id,texture,size,bg,tint);FinishRaised(draw,channels);return hit;
+}
 inline void ApplyStyle(ImGuiStyle& s,float scale) {
     s.WindowRounding=14*scale;s.ChildRounding=10*scale;s.PopupRounding=10*scale;s.FrameRounding=6*scale;s.GrabRounding=5*scale;s.TabRounding=6*scale;
     s.WindowBorderSize=1;s.ChildBorderSize=1;s.PopupBorderSize=1;s.FrameBorderSize=1;
