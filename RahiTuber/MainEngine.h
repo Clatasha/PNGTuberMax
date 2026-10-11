@@ -550,7 +550,7 @@ public:
 			ImGui::SetWindowSize({ 400 * appConfig->scalingFactor,-1 });
 
             ImGui::SeparatorText("PNGTuber Max by Clatasha");
-            ImGui::TextWrapped("Development foundation based on RahiTuber 14.42. Virtual camera and plush mode are planned additions.");
+            ImGui::TextWrapped("PNGTuber Max 0.1.1 preview. Virtual camera output is integrated; plush PNG mode and face tracking are next.");
             if (MaxUi::Button("PNGTuber Max releases", { -1, UIUnit }))
                 OsOpenInShell("https://github.com/Clatasha/PNGTuberMax/releases");
             ToolTip("Opens PNGTuber Max releases on GitHub.", &appConfig->_hoverTimer);
@@ -606,7 +606,7 @@ public:
             ImGui::TextWrapped("RahiTuber (c) 2018-%d Rahisaurus (Tom Rule)", year);
 			ImGui::PopStyleColor(2);
 
-			ImGui::TextWrapped("PNGTuber Max 0.1.0 foundation / RahiTuber engine %.3f", appConfig->_versionNumber);
+			ImGui::TextWrapped("PNGTuber Max 0.1.1 preview / RahiTuber engine %.3f", appConfig->_versionNumber);
 
 			ImGui::Separator();
 			if (MaxUi::Button("OK", { -1,20 }))
