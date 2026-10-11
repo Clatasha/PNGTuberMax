@@ -555,6 +555,7 @@ public:
 		sf::Clock _timer;
 	};
 
+	void DrawEditorGuides(sf::RenderTarget* target);
 	void Draw(sf::RenderTarget* target, float windowHeight, float windowWidth, float talkLevel, float talkMax, PhonemeMask phMask = PH_NONE);
 
 	void DrawOldLayerSetUI();

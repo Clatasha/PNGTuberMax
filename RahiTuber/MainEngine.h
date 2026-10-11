@@ -2210,6 +2210,7 @@ public:
 
 		PhonemeMask phMask = SelectPhoneme();
 		layerMan->Draw(&appConfig->_layersRT, appConfig->_scrH, appConfig->_scrW, audioLevel, audioConfig->_midMax, phMask);
+        layerMan->DrawEditorGuides(&appConfig->_menuRT);
 
 		if (layerMan && layerMan->IsEmptyAndIdle())
 		{

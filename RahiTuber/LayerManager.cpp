@@ -424,13 +424,18 @@ void LayerManager::Draw(sf::RenderTarget* target, float windowHeight, float wind
 	}
 
 
+    for (int l = int(_layers.size()) - 1; l >= 0; --l) _layers[l].PostDraw();
+}
+
+// Editing guides belong to the UI render, never the camera/avatar texture.
+void LayerManager::DrawEditorGuides(sf::RenderTarget* target)
+{
 	// ------------------------------------- reset / ui loop ---------------------------------
 	
 	for (int l = _layers.size() - 1; l >= 0; l--)
 	{
 		LayerInfo& layer = _layers[l];
 
-		layer.PostDraw();
 
 		if (_uiConfig->_menuShowing && _uiConfig->_showLayerBounds)
 		{
