@@ -31,6 +31,7 @@ int main(){check(SUCCEEDED(CoInitializeEx(nullptr,COINIT_MULTITHREADED)),"COM in
  check(SUCCEEDED(cfg->SetFormat(mt)),"set advertised format");freeType(mt);mt=nullptr;
  check(SUCCEEDED(cfg->SetFormat(nullptr)),"restore default format");check(cfg->GetFormat(nullptr)==E_POINTER,"null format output");check(SUCCEEDED(cfg->GetFormat(&mt))&&mt,"native format allocation");freeType(mt);mt=nullptr;
  check(FAILED(cfg->GetStreamCaps(count,&mt,(BYTE*)&caps))&&mt==nullptr,"invalid capability index");
+ if(count>1){check(SUCCEEDED(cfg->GetStreamCaps(1,&mt,(BYTE*)&caps))&&mt,"secondary RGB24 capability");check(SUCCEEDED(cfg->SetFormat(mt)),"select RGB24");freeType(mt);mt=nullptr;check(SUCCEEDED(cfg->GetFormat(&mt))&&((VIDEOINFOHEADER*)mt->pbFormat)->bmiHeader.biBitCount==24,"selected format is retained");freeType(mt);mt=nullptr;check(SUCCEEDED(cfg->SetFormat(nullptr)),"reset RGB32 after RGB24");}
  IEnumMediaTypes* types=nullptr;check(SUCCEEDED(pin->EnumMediaTypes(&types)),"enumerate media types");check(types->Next(1,&mt,&fetched)==S_OK&&mt,"native type enumeration");freeType(mt);types->Release();
  check(SUCCEEDED(filter->Pause())&&SUCCEEDED(filter->Stop()),"unconnected state cycle");cfg->Release();
  if(cycle<3){IGraphBuilder* graph=nullptr;IBaseFilter* sink=nullptr;IMediaControl* control=nullptr;
