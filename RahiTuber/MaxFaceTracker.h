@@ -9,6 +9,7 @@
 #include <winsock2.h>
 #include <windows.h>
 #include <dshow.h>
+#include <oleauto.h>
 #endif
 class MaxFaceTracker {
 public:
@@ -50,7 +51,7 @@ public:
  }
  void Stop(){
 #ifdef _WIN32
- if(data){if(lock&&WaitForSingleObject(lock,200)==WAIT_OBJECT_0){*reinterpret_cast<unsigned*>(data+28)=0;ReleaseMutex(lock);}}
+ if(data){DWORD acquired=lock?WaitForSingleObject(lock,200):WAIT_FAILED;if(acquired==WAIT_OBJECT_0||acquired==WAIT_ABANDONED){*reinterpret_cast<unsigned*>(data+28)=0;ReleaseMutex(lock);}}
  if(process){if(WaitForSingleObject(process,1000)==WAIT_TIMEOUT)TerminateProcess(process,0);CloseHandle(process);process=nullptr;}
  if(job){CloseHandle(job);job=nullptr;}
  if(data){UnmapViewOfFile(data);data=nullptr;}if(map){CloseHandle(map);map=nullptr;}if(lock){CloseHandle(lock);lock=nullptr;}
@@ -61,7 +62,8 @@ public:
  float dt=std::min(.1f,clock.restart().asSeconds());MaxRigPose target{};
 #ifdef _WIN32
  if(running&&process&&WaitForSingleObject(process,0)==WAIT_OBJECT_0){running=false;available=false;status="Tracker stopped. Check webcam access in Windows Settings or choose another camera.";}
- if(running&&data&&WaitForSingleObject(lock,0)==WAIT_OBJECT_0){
+ DWORD acquired=running&&data?WaitForSingleObject(lock,0):WAIT_FAILED;
+ if(acquired==WAIT_OBJECT_0||acquired==WAIT_ABANDONED){
  unsigned header[4];std::memcpy(header,data,16);
  if(header[0]==0x52494731&&header[1]!=sequence){sequence=header[1];fresh.restart();available=header[2]==1;
  if(available){std::memcpy(&raw,data+16,12);for(int i=0;i<3;++i){if(textures[i].getSize()!=sf::Vector2u(128,96)){textures[i].create(128,96);textures[i].setSmooth(true);}textures[i].update(data+64+i*128*96*4);}status="Face tracked";}else status=header[2]==3?"Camera unavailable. Close another app using it, or choose a different input.":"Looking for your face";}

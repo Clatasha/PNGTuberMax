@@ -70,7 +70,10 @@ void LayerManager::LayerInfo::DrawSprites(sf::RenderTarget* target,const sf::Ren
         auto size=body->_activeSprite->Size();auto world=body->_rigWorld;auto anchor=states.transform.transformPoint(_activeSprite->getPosition());auto local=world.getInverse().transformPoint(anchor);
         auto pose=body->_rigTestPose;pose.lean+=_parent->_webcamPose.lean;pose.nod+=_parent->_webcamPose.nod;pose.turn+=_parent->_webcamPose.turn;
         auto warped=MaxRigWarp({local.x/std::max(1.f,size.x),local.y/std::max(1.f,size.y)},body->_rigBones,pose);auto moved=world.transformPoint(warped.x*size.x,warped.y*size.y);
-        sf::Transform offset;offset.translate(moved-anchor);states.transform=offset*states.transform;
+        auto originalAxis=world.transformPoint(local.x+1,local.y)-world.transformPoint(local);
+        auto next=MaxRigWarp({(local.x+1)/std::max(1.f,size.x),local.y/std::max(1.f,size.y)},body->_rigBones,pose);auto movedAxis=world.transformPoint(next.x*size.x,next.y*size.y)-moved;
+        float rotation=(std::atan2(movedAxis.y,movedAxis.x)-std::atan2(originalAxis.y,originalAxis.x))*57.2957795f;
+        sf::Transform offset;offset.translate(moved-anchor);offset.rotate(rotation,anchor);states.transform=offset*states.transform;
     }
     if(_activeSprite)_rigWorld=states.transform*_activeSprite->getTransform();
     MaxRigPose pose=_rigTestPose;pose.lean+=_parent->_webcamPose.lean;pose.nod+=_parent->_webcamPose.nod;pose.turn+=_parent->_webcamPose.turn;

@@ -45,7 +45,7 @@ def run(args):
         nonlocal sequence
         sequence+=1
         header=struct.pack('<IIIIfff',0x52494731,sequence,status,0,*pose).ljust(64,b'\0')
-        if kernel.WaitForSingleObject(mutex,100)==0:
+        if kernel.WaitForSingleObject(mutex,100) in (0,128):
             try:
                 memory.seek(0);memory.write(header[:28])
                 if crops:
