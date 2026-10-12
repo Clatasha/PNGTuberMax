@@ -5828,11 +5828,11 @@ bool LayerManager::LayerInfo::DrawGUI(ImGuiStyle& style, int layerID)
                     ImGui::Checkbox("Join front and back PNGs",&_plushEnabled);
                     ImGui::TextWrapped("Idle is the front view. Add a back view below, then adjust the roundness and turn.");
                     SpriteSelectGUI(SP_PLUSH_BACK,smlImageBtnWidth,animBtnWidth,btnColor,uiScale,false,true);
-                    ImGui::SetNextItemWidth(-1);ImGui::SliderFloat("Roundness",&_plushRoundness,.05f,1.25f,"%.2f");
-                    ImGui::SetNextItemWidth(-1);ImGui::SliderFloat("Turn",&_plushYaw,-180,180,"%.0f degrees");
+                    ImGui::TextUnformatted("Roundness");ImGui::SetNextItemWidth(-1);ImGui::SliderFloat("##plushRoundness",&_plushRoundness,.05f,1.25f,"%.2f");
+                    ImGui::TextUnformatted("Turn");ImGui::SetNextItemWidth(-1);ImGui::SliderFloat("##plushTurn",&_plushYaw,-180,180,"%.0f degrees");
                     if(MaxUi::Button("Front"))_plushYaw=0;ImGui::SameLine();if(MaxUi::Button("Back"))_plushYaw=180;
                     ImGui::Checkbox("Follow mouse turn",&_plushFollowMouse);
-                    if(_plushFollowMouse){ImGui::SetNextItemWidth(-1);ImGui::SliderFloat("Turn range",&_plushMouseRange,0,80,"%.0f degrees");}
+                    if(_plushFollowMouse){ImGui::TextUnformatted("Turn range");ImGui::SetNextItemWidth(-1);ImGui::SliderFloat("##plushTurnRange",&_plushMouseRange,0,80,"%.0f degrees");}
                     if(_plushEnabled&&!_sprites[SP_PLUSH_BACK]->HasTexture())ImGui::TextWrapped("Add a back PNG to activate the effect. Until then, the front stays visible.");
                     ImGui::TextWrapped("Use matching transparent canvases. This preview wraps the body PNGs; eye and accessory layers keep their existing attachment behaviour.");
                 }
