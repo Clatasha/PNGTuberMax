@@ -114,3 +114,9 @@ endif()
 
 add_executable(MaxRigTests tests/RigTests.cpp)
 target_compile_features(MaxRigTests PRIVATE cxx_std_17)
+
+if(WIN32)
+ add_executable(MaxFaceBridgeTests tests/FaceBridgeTests.cpp)
+ target_compile_features(MaxFaceBridgeTests PRIVATE cxx_std_17)
+ target_link_libraries(MaxFaceBridgeTests PRIVATE sfml-graphics sfml-window sfml-system ole32 oleaut32 strmiids)
+endif()

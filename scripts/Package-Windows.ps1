@@ -20,6 +20,7 @@ foreach ($library in @('SFML','imgui','freetype','mongoose','portaudio','tinyxml
     if ($license) { Copy-Item $license.FullName "$OutputDir\notices\$library-license.txt" -Force }
 }
 Copy-Item "$root\RahiTuber\imgui-sfml\LICENSE" "$OutputDir\notices\imgui-sfml-license.txt" -Force
+Copy-Item "$root\docs\RIGGING.md" "$OutputDir\RIGGING.md" -Force
 Copy-Item "$root\docs\PREVIEW.txt" "$OutputDir\README.txt" -Force
 # Bundle the MSVC runtime installed with the build tools, rather than requiring another installer.
 $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"

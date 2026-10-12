@@ -1,4 +1,4 @@
-PNGTUBER MAX by Clatasha — 0.1.8 DEVELOPMENT PREVIEW
+PNGTUBER MAX by Clatasha — 0.1.9 DEVELOPMENT PREVIEW
 
 Extract the complete folder and open PNGTuberMax.exe. Keep the resources and DLLs together.
 Requires Windows 10/11 x64 with .NET Framework 4.8. No OBS or another PNGTuber app is needed.
@@ -123,3 +123,6 @@ Start camera is green; Stop camera is red, in both the studio toolbar and Camera
 The buttons are taller and an OUTPUT ON/OFF label states whether the avatar is being sent.
 When output is off, a short instruction points to the green Start camera button.
 The native camera implementation remains 0.1.7.
+
+0.1.9 PNG RIG AND LOCAL FACE TRACKING
+Editable PNG bones, mesh deformation, rig-following accessories and live eye/mouth sublayers. Bundled local tracking runtime; named webcam selector, neutral calibration and smoothing. See RIGGING.md for setup and preview limitations.

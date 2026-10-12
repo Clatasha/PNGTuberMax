@@ -28,7 +28,7 @@ public:
  ~MaxFaceTracker(){Stop();}
  bool Running()const{return running;}
  void Calibrate(){neutral=raw;pose={};}
- void Start(const std::string& appLocation){
+ void Start(const std::string& appLocation,bool contractTest=false){
  Stop();
 #ifdef _WIN32
  auto root=std::filesystem::path(appLocation)/"tracker";auto exe=root/"pythonw.exe",script=root/"tracker.py";
@@ -39,6 +39,7 @@ public:
  if(!lock||!data){Stop();status="Unable to create tracking buffer";return;}
  std::memset(data,0,bytes);*reinterpret_cast<unsigned*>(data+28)=1;
  std::wstring command=L"\""+exe.wstring()+L"\" \""+script.wstring()+L"\" --name \""+name+L"\" --camera "+std::to_wstring(device);
+ if(contractTest)command+=L" --test-stream";
  STARTUPINFOW si{};si.cb=sizeof(si);PROCESS_INFORMATION pi{};
  if(!CreateProcessW(exe.c_str(),command.data(),nullptr,nullptr,FALSE,CREATE_NO_WINDOW,nullptr,root.c_str(),&si,&pi)){Stop();status="Could not start bundled tracker";return;}
  process=pi.hProcess;CloseHandle(pi.hThread);

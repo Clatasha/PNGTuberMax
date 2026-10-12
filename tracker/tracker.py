@@ -37,8 +37,9 @@ def run(args):
     mutex=kernel.OpenMutexW(0x100001,False,args.name+'Lock')
     if not mutex: raise OSError(ctypes.get_last_error(),'Tracker mutex unavailable')
     memory=mmap.mmap(-1,SIZE,tagname=args.name)
-    camera=cv2.VideoCapture(args.camera,cv2.CAP_DSHOW)
-    camera.set(cv2.CAP_PROP_FRAME_WIDTH,640);camera.set(cv2.CAP_PROP_FRAME_HEIGHT,480)
+    camera=None if args.test_stream else cv2.VideoCapture(args.camera,cv2.CAP_DSHOW)
+    if camera is not None:
+        camera.set(cv2.CAP_PROP_FRAME_WIDTH,640);camera.set(cv2.CAP_PROP_FRAME_HEIGHT,480)
     sequence=0
     def publish(status, pose=(0,0,0), crops=None):
         nonlocal sequence
@@ -47,9 +48,20 @@ def run(args):
         if kernel.WaitForSingleObject(mutex,100)==0:
             try:
                 memory.seek(0);memory.write(header[:28])
-                if crops: memory.write(b''.join(crops))
+                if crops:
+                    memory.seek(64);memory.write(b''.join(crops))
             finally: kernel.ReleaseMutex(mutex)
-    if not camera.isOpened():publish(3);return
+    def active():
+        memory.seek(28)
+        return memory.read(4)==b'\x01\0\0\0'
+    if args.test_stream:
+        pixels=bytes((35,70,100,128))*(128*96)
+        while active():publish(1,(12.,7.,-9.),[pixels]*3);time.sleep(1/30)
+        memory.close();kernel.CloseHandle(ctypes.c_void_p(mutex));return
+    if not camera.isOpened():
+        publish(3)
+        while active():time.sleep(.1)
+        camera.release();memory.close();kernel.CloseHandle(ctypes.c_void_p(mutex));return
     try:
         with mp.solutions.face_mesh.FaceMesh(refine_landmarks=True,max_num_faces=1,min_detection_confidence=.5,min_tracking_confidence=.5) as face:
             while True:
@@ -79,6 +91,6 @@ def run(args):
         camera.release();memory.close();kernel.CloseHandle(ctypes.c_void_p(mutex))
 
 if __name__=='__main__':
-    parser=argparse.ArgumentParser();parser.add_argument('--name');parser.add_argument('--camera',type=int,default=0);parser.add_argument('--self-test',action='store_true');args=parser.parse_args()
+    parser=argparse.ArgumentParser();parser.add_argument('--name');parser.add_argument('--camera',type=int,default=0);parser.add_argument('--self-test',action='store_true');parser.add_argument('--test-stream',action='store_true');args=parser.parse_args()
     if args.self_test:self_test()
     else:run(args)
