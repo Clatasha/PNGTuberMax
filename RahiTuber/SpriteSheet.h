@@ -7,6 +7,7 @@
 #include "imgui.h"
 #include "TextureManager.h"
 #include <thread>
+#include "MaxPlushMath.h"
 
 class SpriteSheet
 {
@@ -14,6 +15,7 @@ public:
 
 	void Draw(sf::RenderTarget* target, const sf::RenderStates& states = sf::RenderStates::Default);
 	void Tick();
+    void DrawPlush(sf::RenderTarget* target, SpriteSheet& back, float roundness, float yaw, const sf::RenderStates& states);
 
 
 	void LoadFromTexture(TextureManager* texMan, const std::string& texPath, int frameCount, int gridX, int gridY, float fps, const sf::Vector2f& frameSize = { -1, -1 }, std::string* errorMsg = nullptr);
@@ -150,6 +152,12 @@ public:
 	bool _optimised = false;
 
 private:
+    bool PrepareDraw(bool forceVisible=false);
+    const std::vector<MaxPlushSpan>& PlushContour();
+    std::vector<MaxPlushSpan> _plushRows;
+    sf::Image _plushImage;
+    unsigned int _plushTextureHandle=0;
+    sf::IntRect _plushFrame;
 
 	sf::Sprite _sprite;
 

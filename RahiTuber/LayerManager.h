@@ -109,14 +109,15 @@ enum SpriteType : int
 	SP_SC_PH_P,
 	SP_SC_PH_W,
 
+    SP_PLUSH_BACK,
 	SP_END
 };
 
 static const char* const g_spriteNames[SP_END] = {
-	"Idle", "Talk", "Blink", "TalkBlink", "Scream", "Open 'A'", "Wide 'E'", "Sibilance 'S'", "Plosive 'P/B'", "Narrow 'oo'", "Open 'A'", "Wide 'E'", "Sibilance 'S'", "Plosive 'P/B'", "Narrow 'oo'",
+	"Idle", "Talk", "Blink", "TalkBlink", "Scream", "Open 'A'", "Wide 'E'", "Sibilance 'S'", "Plosive 'P/B'", "Narrow 'oo'", "Open 'A'", "Wide 'E'", "Sibilance 'S'", "Plosive 'P/B'", "Narrow 'oo'", "Back view",
 };
 static const char* const g_spriteElements[SP_END] = {
-	"Idle", "Talk", "Blink", "TalkBlink", "Scream", "Open", "Wide", "Sibilance", "Plosive", "Narrow", "OpenScream", "WideScream", "SibilanceScream", "PlosiveScream", "NarrowScream"
+	"Idle", "Talk", "Blink", "TalkBlink", "Scream", "Open", "Wide", "Sibilance", "Plosive", "Narrow", "OpenScream", "WideScream", "SibilanceScream", "PlosiveScream", "NarrowScream", "PlushBack"
 };
 
 class LayerManager
@@ -287,6 +288,10 @@ public:
 		std::map<SpriteType, SpriteInfo> _sprites;
 
 		SpriteSheet* _activeSprite = nullptr;
+        bool _plushEnabled=false,_plushFollowMouse=false;
+        float _plushRoundness=.45f,_plushYaw=0.f,_plushMouseRange=45.f,_plushRenderedYaw=0.f;
+        sf::Clock _plushTurnClock;
+        void DrawSprites(sf::RenderTarget* target,const sf::RenderStates& states);
 
 		sf::Vector2f _scale = { 1.f, 1.f };
 		sf::Vector2f _pos;

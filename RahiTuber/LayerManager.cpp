@@ -55,6 +55,15 @@ void SaveRTImage(sf::RenderTexture& rt, const std::string& name)
 
 //#define DEBUG_CLIP_RENDERING
 
+void LayerManager::LayerInfo::DrawSprites(sf::RenderTarget* target,const sf::RenderStates& states){
+    float turn=_plushYaw;
+    if(_plushFollowMouse){auto size=_parent->_appConfig->_window.getSize();auto mouse=sf::Mouse::getPosition(_parent->_appConfig->_window);if(size.x)turn+=std::clamp(2.f*mouse.x/size.x-1.f,-1.f,1.f)*_plushMouseRange;}
+    float elapsed=std::min(.1f,_plushTurnClock.restart().asSeconds());_plushRenderedYaw+=(turn-_plushRenderedYaw)*(1.f-std::exp(-elapsed*12.f));
+    auto back=_sprites.find(SP_PLUSH_BACK);
+    bool plush=_plushEnabled&&back!=_sprites.end()&&back->second->HasTexture();
+    for(auto& sprite:_sprites){if(sprite.first==SP_PLUSH_BACK)continue;if(plush)sprite.second->DrawPlush(target,*back->second,_plushRoundness,_plushRenderedYaw,states);else sprite.second->Draw(target,states);}
+}
+
 void LayerManager::Draw(sf::RenderTarget* target, float windowHeight, float windowWidth, float talkLevel, float talkMax, PhonemeMask phMask)
 {
 	_lastTalkLevel = talkLevel;
@@ -289,8 +298,7 @@ void LayerManager::Draw(sf::RenderTarget* target, float windowHeight, float wind
 				if (useBlendShader)
 					state.shader = _blendingShader.get();
 
-				for(auto& sp : layer._sprites)
-					sp.second->Draw(target, state);
+				layer.DrawSprites(target,state);
 			}
 			else
 			{
@@ -347,10 +355,7 @@ void LayerManager::Draw(sf::RenderTarget* target, float windowHeight, float wind
 				clipState.blendMode = g_blendmodes["Overwrite"];
 
 				// Draw clip layer onto an empty canvas
-				for (auto& csp : clipLayer->_sprites)
-				{
-					csp.second->Draw(&clipRTs._clipRT, clipState);
-				}
+				clipLayer->DrawSprites(&clipRTs._clipRT,clipState);
 
 #ifdef DEBUG_CLIP_RENDERING
 				if (layer._isClipInverted)
@@ -375,10 +380,7 @@ void LayerManager::Draw(sf::RenderTarget* target, float windowHeight, float wind
 				}
 
 				// Draw layer to be clipped onto an empty canvas
-				for (auto& sp : layer._sprites)
-				{
-					sp.second->Draw(&clipRTs._soloLayerRT, state);
-				}
+				layer.DrawSprites(&clipRTs._soloLayerRT,state);
 
 				clipRTs._soloLayerRT.display();
 
@@ -2319,6 +2321,11 @@ bool LayerManager::SaveLayers(const std::string& settingsFileName, bool makePort
 
 		if (layer._isFolder == false)
 		{
+			thisLayer->SetAttribute("plushEnabled",layer._plushEnabled);
+            thisLayer->SetAttribute("plushRoundness",layer._plushRoundness);
+            thisLayer->SetAttribute("plushYaw",layer._plushYaw);
+            thisLayer->SetAttribute("plushFollowMouse",layer._plushFollowMouse);
+            thisLayer->SetAttribute("plushMouseRange",layer._plushMouseRange);
 			thisLayer->SetAttribute("talking", layer._swapWhenTalking);
 			thisLayer->SetAttribute("talkThreshold", layer._talkThreshold);
 			thisLayer->SetAttribute("smoothInput", layer._smoothTalkFactor);
@@ -3011,7 +3018,12 @@ bool LayerManager::LoadLayers(const std::string& settingsFileName)
 				layer._isBlinking = false;
 				layer._blinkVarDelay = GetRandom11() * layer._blinkVariation;
 
-				thisLayer->QueryAttribute("scaleX", &layer._scale.x);
+				thisLayer->QueryAttribute("plushEnabled",&layer._plushEnabled);
+                thisLayer->QueryAttribute("plushRoundness",&layer._plushRoundness);layer._plushRoundness=std::clamp(layer._plushRoundness,.05f,1.25f);
+                thisLayer->QueryAttribute("plushYaw",&layer._plushYaw);layer._plushYaw=std::clamp(layer._plushYaw,-180.f,180.f);layer._plushRenderedYaw=layer._plushYaw;
+                thisLayer->QueryAttribute("plushFollowMouse",&layer._plushFollowMouse);
+                thisLayer->QueryAttribute("plushMouseRange",&layer._plushMouseRange);layer._plushMouseRange=std::clamp(layer._plushMouseRange,0.f,80.f);
+                thisLayer->QueryAttribute("scaleX", &layer._scale.x);
 				thisLayer->QueryAttribute("scaleY", &layer._scale.y);
 				thisLayer->QueryAttribute("posX", &layer._pos.x);
 				thisLayer->QueryAttribute("posY", &layer._pos.y);
@@ -5812,6 +5824,18 @@ bool LayerManager::LayerInfo::DrawGUI(ImGuiStyle& style, int layerID)
 				ImGui::Checkbox("Restart anims on becoming visible", &_restartAnimsOnVisible);
 				ToolTip("Restarts all this layer's sprite-sheets whenever\nthis layer is made visible", &_parent->_appConfig->_hoverTimer);
 
+                if (LesserCollapsingHeader("Plush PNG mode...")) {
+                    ImGui::Checkbox("Join front and back PNGs",&_plushEnabled);
+                    ImGui::TextWrapped("Idle is the front view. Add a back view below, then adjust the roundness and turn.");
+                    SpriteSelectGUI(SP_PLUSH_BACK,smlImageBtnWidth,animBtnWidth,btnColor,uiScale,false,true);
+                    ImGui::SetNextItemWidth(-1);ImGui::SliderFloat("Roundness",&_plushRoundness,.05f,1.25f,"%.2f");
+                    ImGui::SetNextItemWidth(-1);ImGui::SliderFloat("Turn",&_plushYaw,-180,180,"%.0f degrees");
+                    if(MaxUi::Button("Front"))_plushYaw=0;ImGui::SameLine();if(MaxUi::Button("Back"))_plushYaw=180;
+                    ImGui::Checkbox("Follow mouse turn",&_plushFollowMouse);
+                    if(_plushFollowMouse){ImGui::SetNextItemWidth(-1);ImGui::SliderFloat("Turn range",&_plushMouseRange,0,80,"%.0f degrees");}
+                    if(_plushEnabled&&!_sprites[SP_PLUSH_BACK]->HasTexture())ImGui::TextWrapped("Add a back PNG to activate the effect. Until then, the front stays visible.");
+                    ImGui::TextWrapped("Use matching transparent canvases. This preview wraps the body PNGs; eye and accessory layers keep their existing attachment behaviour.");
+                }
 				if (LesserCollapsingHeader("Compositing..."))
 				{
 					BetterIndent(indentSize, _id + "comp");

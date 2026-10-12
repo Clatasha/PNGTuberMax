@@ -1,0 +1,4 @@
+#include "../RahiTuber/MaxPlushMath.h"
+#include <stdexcept>
+#include <iostream>
+int main(){for(float yaw:{-180.f,-90.f,-45.f,0.f,45.f,90.f,180.f})for(float depth:{.05f,.45f,1.25f})for(float u:{-1.f,1.f})if(std::fabs(MaxPlushX(100,80,u,depth,yaw,false)-MaxPlushX(100,80,u,depth,yaw,true))>.001f)throw std::runtime_error("Front and back seams separated");if(!MaxPlushFacing(0,.45f,0,false)||MaxPlushFacing(0,.45f,0,true)||!MaxPlushFacing(0,.45f,180,true))throw std::runtime_error("Wrong face shown");unsigned char image[4*4*4]={};image[(1*4+1)*4+3]=1;image[(1*4+2)*4+3]=255;auto contour=MaxPlushContour(image,4,4,0,0,4,4);if(contour[0].valid||!contour[1].valid||contour[1].left!=1||contour[1].right!=3)throw std::runtime_error("Transparent contour lost antialias edge");std::cout<<"PASS: shared seams at every turn, facing and transparent contours\n";}

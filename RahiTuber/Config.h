@@ -193,6 +193,7 @@ paTestData;
 struct AudioConfig
 {
 	std::atomic<float> _inputPeak{0.f};
+    std::string _inputStatus="Choose an audio input. The editor works without a microphone.";
 	float _cutoff = 0.0006f;
 
 	SAMPLE _overallLevel = 0.f;

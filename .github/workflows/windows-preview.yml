@@ -17,11 +17,13 @@ jobs:
       - name: Configure Windows x64
         run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
       - name: Build app and frame test
-        run: cmake --build build --config Release --target RahiTuber MaxCameraFrameTests MaxWorkspaceTests --parallel 4
+        run: cmake --build build --config Release --target RahiTuber MaxCameraFrameTests MaxWorkspaceTests MaxPlushMathTests MaxPlushRenderTests --parallel 4
       - name: Test frame contract
         run: |
           .\build\Release\MaxCameraFrameTests.exe
           .\build\Release\MaxWorkspaceTests.exe
+          .\build\Release\MaxPlushMathTests.exe
+          .\build\Release\MaxPlushRenderTests.exe
       - name: Package preview
         shell: powershell
         run: .\scripts\Package-Windows.ps1
@@ -42,3 +44,9 @@ jobs:
           path: dist/PNGTuberMax/
           if-no-files-found: error
           retention-days: 14
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Plush-Render-Check
+          path: plush-render-check.png
+          if-no-files-found: error

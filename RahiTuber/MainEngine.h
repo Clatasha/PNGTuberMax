@@ -558,7 +558,7 @@ public:
 			ImGui::SetWindowSize({ 400 * appConfig->scalingFactor,-1 });
 
             ImGui::SeparatorText("PNGTuber Max by Clatasha");
-            ImGui::TextWrapped("PNGTuber Max 0.1.2 preview. Virtual camera output is integrated; plush PNG mode and face tracking are next.");
+            ImGui::TextWrapped("PNGTuber Max 0.1.3 preview. Virtual camera output is integrated; plush PNG mode and face tracking are next.");
             if (MaxUi::Button("PNGTuber Max releases", { -1, UIUnit }))
                 OsOpenInShell("https://github.com/Clatasha/PNGTuberMax/releases");
             ToolTip("Opens PNGTuber Max releases on GitHub.", &appConfig->_hoverTimer);
@@ -614,7 +614,7 @@ public:
             ImGui::TextWrapped("RahiTuber (c) 2018-%d Rahisaurus (Tom Rule)", year);
 			ImGui::PopStyleColor(2);
 
-			ImGui::TextWrapped("PNGTuber Max 0.1.2 preview / RahiTuber engine %.3f", appConfig->_versionNumber);
+			ImGui::TextWrapped("PNGTuber Max 0.1.3 preview / RahiTuber engine %.3f", appConfig->_versionNumber);
 
 			ImGui::Separator();
 			if (MaxUi::Button("OK", { -1,20 }))
@@ -1514,41 +1514,16 @@ public:
 			ImGui::EndTable();
 		}
 
-		bool useDefaultDevice = audioConfig->_devIdx == -1;
-		if (useDefaultDevice && !audioConfig->_missingDeviceShown)
-		{
-			switch (ConfirmModal("Audio Device Not Found", &useDefaultDevice, useDefaultDevice,
-				"The Audio Input device saved in your settings is not available.\nSwitch to the system default input device?", "Use Default", "Ignore"))
-			{
-			case -1:
-				break;
-			case 0:
-			{
-				audioConfig->_missingDeviceShown = true;
-				break;
-			}
-			case 1:
-			{
-				int defInputIdx = Pa_GetDefaultInputDevice();
-				if (useDefaultDevice && audioConfig->_nDevices > 0)
-				{
-					//use the default input device
-					auto dev = audioConfig->GetAudioDevice(defInputIdx);
-					if (dev != nullptr)
-					{
-						SwitchAudioDevice(*dev);
-						logToFile(appConfig, "Auto-selecting system default device " + std::to_string(dev->second) + ": " + dev->first);
-					}
-
-					if (audioConfig->_devIdx == -1)
-						audioConfig->_devIdx = 0;
-				}
-				audioConfig->_missingDeviceShown = true;
-				break;
-			}
-			}
-		}
-	}
+        if (audioConfig->_devIdx == paNoDevice) {
+            ImGui::TextWrapped("%s",audioConfig->_inputStatus.c_str());
+            if (MaxUi::Button("Use system default", {-1,0})) {
+                ListAudioDevices();
+                auto* device=audioConfig->GetAudioDevice(Pa_GetDefaultInputDevice());
+                if (device) SwitchAudioDevice(*device);
+                else audioConfig->_inputStatus="No system-default microphone is available. Connect one and refresh the input list.";
+            }
+        }
+    }
 
 	void SwitchAudioDevice(std::pair<std::string, int>& dev)
 	{
@@ -1557,7 +1532,7 @@ public:
 		StopAudioStream();
 
 		auto info = Pa_GetDeviceInfo(dev.second);
-		float sRate;
+        if (!info || info->maxInputChannels<=0) {audioConfig->_devIdx=paNoDevice;audioConfig->_inputPeak=0;audioConfig->_inputStatus="That input is no longer available. Refresh the list or choose another device.";return;}
 
 		audioConfig->_lastDeviceName = dev.first;
 		audioConfig->_devIdx = dev.second;
@@ -1588,49 +1563,17 @@ public:
 		audioConfig->_trebleSoftFall = 0;
 	}
 
-	void StopAudioStream()
-	{
-		Pa_StopStream(audioConfig->_audioStr);
-		Pa_CloseStream(audioConfig->_audioStr);
-	}
-
-	void ListAudioDevices(bool checkMissingOrChanged = false)
-	{
-		if (checkMissingOrChanged)
-		{
-			Pa_Terminate();
-			Pa_Initialize();
-		}
-
-		int oldDevCount = audioConfig->_deviceList.size();
-		audioConfig->_nDevices = Pa_GetDeviceCount();
-		audioConfig->_deviceList.clear();
-		for (int dI = 0; dI < audioConfig->_nDevices; dI++)
-		{
-			auto info = Pa_GetDeviceInfo(dI);
-			if (info->hostApi == 0 && info->maxInputChannels > 0)
-				audioConfig->_deviceList.push_back({ info->name, dI });
-		}
-		int newCount = audioConfig->_deviceList.size();
-
-		if (checkMissingOrChanged)
-		{
-			if (newCount != oldDevCount) logFmtToFile(appConfig, "Listed %d input devices (previous: %d)", newCount, oldDevCount);
-
-			auto dev = audioConfig->GetAudioDevice(audioConfig->_lastDeviceName);
-			if (dev != nullptr)
-			{
-				SwitchAudioDevice(*dev);
-				if(newCount != oldDevCount) logToFile(appConfig, "Audio Devices changed, preserved choice: " + dev->first);
-			}
-			else
-			{
-				audioConfig->_devIdx = -1;
-				if (newCount != oldDevCount) logToFile(appConfig, "Audio Devices changed, lost connection to " + audioConfig->_lastDeviceName);
-			}
-
-		}
-	}
+    void StopAudioStream() {
+        if(audioConfig->_audioStr){Pa_StopStream(audioConfig->_audioStr);Pa_CloseStream(audioConfig->_audioStr);audioConfig->_audioStr=nullptr;}
+        audioConfig->_inputPeak=0;
+    }
+    void ListAudioDevices(bool checkMissingOrChanged=false) {
+        if(checkMissingOrChanged){StopAudioStream();Pa_Terminate();auto error=Pa_Initialize();if(error!=paNoError){audioConfig->_deviceList.clear();audioConfig->_devIdx=paNoDevice;audioConfig->_inputStatus=std::string("Audio unavailable: ")+Pa_GetErrorText(error);return;}}
+        audioConfig->_nDevices=Pa_GetDeviceCount();audioConfig->_deviceList.clear();
+        if(audioConfig->_nDevices<0){audioConfig->_devIdx=paNoDevice;audioConfig->_inputStatus="Audio inputs are unavailable. You can keep editing and retry with Refresh.";return;}
+        for(int id=0;id<audioConfig->_nDevices;id++){auto* info=Pa_GetDeviceInfo(id);if(info&&info->maxInputChannels>0)audioConfig->_deviceList.push_back({info->name,id});}
+        if(checkMissingOrChanged){auto* device=audioConfig->GetAudioDevice(audioConfig->_lastDeviceName);if(device)SwitchAudioDevice(*device);else{audioConfig->_devIdx=paNoDevice;audioConfig->_inputStatus="The saved microphone is unavailable. Choose an input or use the system default.";}}
+    }
 
 	void menuPresets(ImGuiStyle& style)
 	{
@@ -1868,7 +1811,7 @@ public:
         MaxUi::BrandHeader();float unit=ImGui::GetFrameHeight();
         if(MaxUi::Button(camera.On()?"Stop camera":"Start camera")){if(camera.On())camera.Stop();else camera.Start();}ImGui::SameLine();if(MaxUi::Button("Setup")){preferenceSection=0;camera.Setup(appConfig->_appLocation);}ImGui::SameLine();menuHelp(style);
         ImGui::TextColored(ImVec4(.55f,.73f,.95f,1),"%s",camera.On()?"Camera sending":"Camera off / see Camera preferences");
-        float reserve=(uiConfig->_audioExpanded?9.7f:6.3f)*unit;
+        float reserve=(uiConfig->_audioExpanded?9.7f:6.3f)*unit+(audioConfig->_devIdx==paNoDevice?3.5f*unit:0.f);
         float managerHeight=std::max(80.f,ImGui::GetContentRegionAvail().y-reserve);layerMan->DrawGUI(style,managerHeight);
         ImGui::Separator();menuAudio(style);ImGui::Separator();menuPresets(style);
         if(MaxUi::Button("Exit PNGTuber Max",{-1,0})){camera.Stop();appConfig->_menuWindow.close();appConfig->_window.close();}
@@ -2798,8 +2741,7 @@ public:
 			err = Pa_Initialize();
 			if (err != paNoError)
 			{
-				logToFile(appConfig, Pa_GetErrorText(err));
-				exit(1);
+				audioConfig->_inputStatus=std::string("Audio unavailable: ")+Pa_GetErrorText(err);audioConfig->_devIdx=paNoDevice;return;
 			}
 
 			StartAudioStream(err);
@@ -3053,8 +2995,7 @@ If you accept, please click the Accept button.
 		err = Pa_Initialize();
 		if (err != paNoError)
 		{
-			printf(Pa_GetErrorText(err));
-			exit(1);
+			audioConfig->_inputStatus=std::string("Audio unavailable: ")+Pa_GetErrorText(err);audioConfig->_devIdx=paNoDevice;return;
 		}
 
 		int apiCount = Pa_GetHostApiCount();
@@ -3066,7 +3007,7 @@ If you accept, please click the Accept button.
 		for (int api = 0; api < apiCount; api++)
 		{
 			const PaHostApiInfo* hostInfo = Pa_GetHostApiInfo(api);
-			std::cout << hostInfo->name << std::endl;
+			if(hostInfo)std::cout << hostInfo->name << std::endl;
 		}
 
 		ListAudioDevices();
@@ -3101,37 +3042,15 @@ If you accept, please click the Accept button.
 
 	}
 
-	void StartAudioStream(PaError& err)
-	{
-		auto info = Pa_GetDeviceInfo(audioConfig->_devIdx);
-
-		// check that the name of the device still matches the one we expect
-		if (audioConfig->_deviceList.size() > audioConfig->_devIdx)
-		{
-			std::string deviceName = audioConfig->_deviceList[audioConfig->_devIdx].first;
-
-			if (deviceName != info->name)
-				return;
-		}
-		else
-		{
-			// idx is outside known list, return
-		}
-
-		logToFile(appConfig, "PortAudio opening stream on device " + std::to_string(audioConfig->_params.device) + ": " + info->name);
-		err = Pa_OpenStream(&audioConfig->_audioStr, &audioConfig->_params, nullptr, audioConfig->_currentSampleRate, FRAMES_PER_BUFFER, paClipOff, recordCallback, audioConfig->_streamData);
-		if (err != paNoError)
-		{
-			std::string errorMsg = Pa_GetErrorText(err);
-			logToFile(appConfig, "PortAudio: Error opening stream: " + errorMsg);
-		}
-		err = Pa_StartStream(audioConfig->_audioStr);
-		if (err != paNoError)
-		{
-			std::string errorMsg = Pa_GetErrorText(err);
-			logToFile(appConfig, "PortAudio: Error starting stream: " + errorMsg);
-		}
-	}
+    void StartAudioStream(PaError& err) {
+        auto* info=Pa_GetDeviceInfo(audioConfig->_devIdx);
+        auto* selected=audioConfig->GetAudioDevice(audioConfig->_devIdx);
+        if(!info||info->maxInputChannels<=0||!selected||selected->first!=info->name){err=paInvalidDevice;audioConfig->_devIdx=paNoDevice;audioConfig->_inputStatus="The selected microphone is unavailable. Refresh the input list.";return;}
+        err=Pa_OpenStream(&audioConfig->_audioStr,&audioConfig->_params,nullptr,audioConfig->_currentSampleRate,FRAMES_PER_BUFFER,paClipOff,recordCallback,audioConfig->_streamData);
+        if(err==paNoError)err=Pa_StartStream(audioConfig->_audioStr);
+        if(err!=paNoError){audioConfig->_inputStatus=std::string("Could not start microphone: ")+Pa_GetErrorText(err);logToFile(appConfig,audioConfig->_inputStatus);StopAudioStream();audioConfig->_devIdx=paNoDevice;return;}
+        audioConfig->_inputStatus="Microphone connected.";
+    }
 
 	void InitializeEngine()
 	{

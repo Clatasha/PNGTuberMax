@@ -72,3 +72,9 @@ target_compile_features(MaxCameraFrameTests PRIVATE cxx_std_17)
 
 add_executable(MaxWorkspaceTests tests/WorkspaceTests.cpp)
 target_compile_features(MaxWorkspaceTests PRIVATE cxx_std_17)
+
+add_executable(MaxPlushMathTests tests/PlushMathTests.cpp)
+target_compile_features(MaxPlushMathTests PRIVATE cxx_std_17)
+add_executable(MaxPlushRenderTests tests/PlushRenderTests.cpp)
+target_compile_features(MaxPlushRenderTests PRIVATE cxx_std_17)
+target_link_libraries(MaxPlushRenderTests PRIVATE sfml-graphics sfml-window sfml-system)

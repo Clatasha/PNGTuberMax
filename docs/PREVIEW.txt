@@ -1,4 +1,4 @@
-PNGTUBER MAX by Clatasha — 0.1.2 DEVELOPMENT PREVIEW
+PNGTUBER MAX by Clatasha — 0.1.3 DEVELOPMENT PREVIEW
 
 Extract the complete folder and open PNGTuberMax.exe. Keep the resources and DLLs together.
 Requires Windows 10/11 x64 with .NET Framework 4.8. No OBS or another PNGTuber app is needed.
@@ -25,7 +25,7 @@ Close the receiving app before removing/updating the camera component.
 To remove it, run Uninstall-Camera.ps1 as administrator. Saved characters remain.
 
 PLANNED
-Front/back plush PNG mode, surface attachments, local face tracking and live eye/mouth cutouts
+Surface attachments, local face tracking and live eye/mouth cutouts
 have not been ported into this new foundation yet.
 
 VALIDATION
@@ -38,7 +38,7 @@ Source: https://github.com/Clatasha/PNGTuberMax
 Original engine: https://github.com/ThomasR95/rahituber
 License notices are included in LICENSE.txt and notices/. Inter is licensed under SIL OFL.
 
-0.1.2 CHANGES
+0.1.3 CHANGES
 The editor is split into left studio/layers, middle avatar preview, and right Preferences.
 Preferences remain visible; choose a settings section using the selector at the top.
 Imports/open/save use Windows file dialogs. Ctrl+Open merges into the current project.
@@ -52,3 +52,19 @@ and records warnings separately from errors. Its result appears in Camera Prefer
 Use Check camera delivery to test registration and real DirectShow frame delivery.
 If setup or checking fails, send the error text from the panel or camera-report.txt /
 camera-install-log.txt in %LOCALAPPDATA%\Clatasha\PNGTuberMax.
+
+0.1.3 AUDIO AND PLUSH PNG MODE
+Missing audio never opens a modal or prevents editing. Choose an input, refresh, or use the
+inline Use system default button. Failed devices show an error beside the input controls.
+Device selection uses actual PortAudio IDs, and refresh closes the old stream safely.
+
+Expand a body layer and open Plush PNG mode. Idle is the front image; import the Back view
+PNG through its image button. Enable Join front and back PNGs, then adjust Roundness / Turn.
+Front and Back buttons reset the view; Follow mouse turn gives live left/right movement.
+Both surfaces share silhouette seams, including at side views. No skeleton or model is needed.
+Use matching transparent canvases and similarly shaped front/back artwork for best results.
+The back image and settings save with the project and are included by Make Portable.
+Talking/blinking front sprites continue to work. Camera output includes the plush effect.
+This first version wraps the body surfaces. Eye/accessory layers retain existing attachments;
+curved surface attachment and face tracking remain planned. Fine contours and strong side
+turns need testing with your mascot artwork. Rendering uses a bounded sprite tessellation.

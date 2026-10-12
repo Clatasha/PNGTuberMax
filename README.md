@@ -47,3 +47,11 @@ The upstream license and notices are retained in [LICENSE.txt](LICENSE.txt). Thi
 The editor now separates studio/layers (left), avatar preview (middle), and persistent Preferences (right). File imports and project open/save use Windows native dialogs. The selected microphone has a six-block live raw-input peak meter, independent of the talking threshold. Layer additions/duplicates are deferred to avoid invalidating UI references, and blank-sprite editor guides are guarded.
 
 Camera installation handles downloaded-DLL blocking and logs native registration warnings without treating them as fatal errors. The in-app Camera preferences show setup results and launch a frame-delivery diagnostic. Windows CI additionally installs the camera and verifies actual DirectShow samples against a shared-memory test pattern. This does not prove compatibility with every receiving app or the user's specific camera error.
+
+### 0.1.3 audio recovery and plush PNG preview
+Missing microphones use an inline status and default-input action, so editing remains accessible.
+Audio streams validate raw device IDs and close safely before device refresh.
+A body layer can join its Idle/front sprite to a Back view PNG, with roundness, a full turn
+slider and optional mouse turning. The two PNG surfaces share silhouette seams; no 3D rig
+is used. Project persistence and portable asset copies include the rear image and settings.
+Separate accessories retain their existing motion attachments. Surface attachment is future work.

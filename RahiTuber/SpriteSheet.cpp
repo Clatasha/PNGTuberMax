@@ -1,6 +1,7 @@
 #include "SpriteSheet.h"
+#include "MaxPlushMesh.h"
 
-void SpriteSheet::Draw(sf::RenderTarget* target, const sf::RenderStates& states)
+bool SpriteSheet::PrepareDraw(bool forceVisible)
 {
 	sf::Time dt = _timer.getElapsedTime();
 
@@ -30,17 +31,13 @@ void SpriteSheet::Draw(sf::RenderTarget* target, const sf::RenderStates& states)
 		}
 	}
 	
-	if (_visible)
+	if (_visible || forceVisible)
 	{
 		if (_spriteUnloaded)
 			ReloadTexture();
 
-		if (_spriteLoadFinished)
-		{
-			target->draw(_sprite, states);
-		}
-
 		_loadTimer.restart();
+        return _spriteLoadFinished && _tex;
 	}
 	else if (_loadTimeout > 0)
 	{
@@ -49,6 +46,22 @@ void SpriteSheet::Draw(sf::RenderTarget* target, const sf::RenderStates& states)
 			UnloadTexture();
 		}
 	}
+    return false;
+}
+void SpriteSheet::Draw(sf::RenderTarget* target,const sf::RenderStates& states){if(PrepareDraw())target->draw(_sprite,states);}
+const std::vector<MaxPlushSpan>& SpriteSheet::PlushContour(){
+ auto rect=_sprite.getTextureRect();auto handle=_tex?_tex->getNativeHandle():0;
+ if(handle!=_plushTextureHandle){_plushImage=_tex->copyToImage();_plushTextureHandle=handle;_plushRows.clear();}
+ if(_plushRows.empty()||rect!=_plushFrame){_plushFrame=rect;auto size=_plushImage.getSize();_plushRows=MaxPlushContour(_plushImage.getPixelsPtr(),size.x,size.y,rect.left,rect.top,rect.width,rect.height);}
+ return _plushRows;
+}
+void SpriteSheet::DrawPlush(sf::RenderTarget* target,SpriteSheet& back,float roundness,float yaw,const sf::RenderStates& states){
+ if(!PrepareDraw())return;if(!back.PrepareDraw(true)){target->draw(_sprite,states);return;}
+ const auto& contour=PlushContour();const auto& rear=back.PlushContour();
+ sf::RenderStates face=states;face.transform*=_sprite.getTransform();
+ // Both halves use one contour, so their left and right seams coincide at every turn angle.
+ face.texture=back._tex;auto rearMesh=MaxPlushMesh(contour,rear,back._sprite.getTextureRect(),roundness,yaw,true,_sprite.getColor());target->draw(rearMesh,face);
+ face.texture=_tex;auto frontMesh=MaxPlushMesh(contour,contour,_sprite.getTextureRect(),roundness,yaw,false,_sprite.getColor());target->draw(frontMesh,face);
 }
 
 void SpriteSheet::Tick()
@@ -74,6 +87,7 @@ void SpriteSheet::LoadFromTexture(TextureManager* texMan, const std::string& tex
 		return;
 
 	_tex = tex;
+    _plushTextureHandle=0;_plushRows.clear();
 	_texMan = texMan;
 	_texPath = texPath;
 
@@ -157,6 +171,7 @@ void SpriteSheet::UnloadTexture()
 
 void SpriteSheet::ReloadTexture(bool force, const std::string& updatePath)
 {
+    _plushTextureHandle=0;_plushRows.clear();
 	if (!force && (_texMan == nullptr || !_spriteUnloaded))
 		return;
 
