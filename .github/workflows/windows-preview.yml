@@ -33,6 +33,11 @@ jobs:
         shell: powershell
         run: |
           $result = Join-Path $env:TEMP 'max-camera-setup.txt'
+          foreach ($view in @([Microsoft.Win32.RegistryView]::Registry64,[Microsoft.Win32.RegistryView]::Registry32)) {
+            $registry=[Microsoft.Win32.RegistryKey]::OpenBaseKey([Microsoft.Win32.RegistryHive]::LocalMachine,$view)
+            $old=$registry.CreateSubKey('SOFTWARE\Classes\CLSID\{860BB310-5D01-11D0-BD3B-00A0C911CE86}\Instance\{B9707C62-8759-4988-9885-1239742EF331}')
+            $old.SetValue('FriendlyName','Clatasha Camera (Preview)');$old.SetValue('CLSID','{B9707C62-8759-4988-9885-1239742EF331}');$old.Dispose();$registry.Dispose()
+          }
           $legacy = Join-Path $env:ProgramFiles 'Clatasha\PNGTuberMaxCamera\PNGTuberMax.Camera.dll'
           New-Item -ItemType Directory -Force (Split-Path $legacy) | Out-Null
           Copy-Item .\dist\PNGTuberMax\PNGTuberMax.Camera.dll $legacy
@@ -40,6 +45,7 @@ jobs:
           try { & .\dist\PNGTuberMax\Install-Camera.ps1 -Quiet -ResultPath $result } finally { $locked.Dispose() }
           Get-Content $result
           if ($LASTEXITCODE -ne 0) { throw 'Camera registration failed.' }
+          if (Test-Path -LiteralPath 'Registry::HKEY_CLASSES_ROOT\CLSID\{860BB310-5D01-11D0-BD3B-00A0C911CE86}\Instance\{B9707C62-8759-4988-9885-1239742EF331}') { throw 'Obsolete prototype camera remains listed.' }
           $registration = Get-ItemProperty -LiteralPath 'Registry::HKEY_CLASSES_ROOT\CLSID\{EEBEE603-EC24-4D77-8827-C8F799C81026}\InprocServer32'
           $installedDll = ([Uri]$registration.CodeBase).LocalPath
           if ((Get-FileHash $installedDll).Hash -ne (Get-FileHash .\dist\PNGTuberMax\PNGTuberMax.Camera.dll).Hash) { throw 'Installed camera differs from packaged build.' }

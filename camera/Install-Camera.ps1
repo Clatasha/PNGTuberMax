@@ -37,7 +37,14 @@ try {
         $registry=[Microsoft.Win32.RegistryKey]::OpenBaseKey([Microsoft.Win32.RegistryHive]::LocalMachine,$view)
         $key=$registry.CreateSubKey("SOFTWARE\Classes\CLSID\$category\Instance\$clsid")
         $key.SetValue('FriendlyName','PNGTuber Max Camera');$key.SetValue('CLSID',$clsid)
-        $key.Dispose();$registry.Dispose();$registered++
+        $key.Dispose()
+        # Retire only our first prototype's device listing; keep its COM class and files intact.
+        $legacyPath="SOFTWARE\Classes\CLSID\$category\Instance\{B9707C62-8759-4988-9885-1239742EF331}"
+        $legacyKey=$registry.OpenSubKey($legacyPath)
+        $retire=$legacyKey -and ($legacyKey.GetValue('FriendlyName') -eq 'Clatasha Camera (Preview)')
+        if ($legacyKey) { $legacyKey.Dispose() }
+        if ($retire) { $registry.DeleteSubKeyTree($legacyPath,$false); Add-Content -LiteralPath $logPath -Value "Retired obsolete Clatasha Camera (Preview) device entry ($arch)." }
+        $registry.Dispose();$registered++
     }
     if ($registered -eq 0) { throw '.NET Framework registration tools were not found.' }
     $message='SUCCESS: Camera build installed. Fully close and reopen OBS / Mirillis Action before selecting PNGTuber Max Camera. Existing receiver processes may still hold the previous DLL.'

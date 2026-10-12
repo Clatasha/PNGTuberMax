@@ -106,3 +106,5 @@ Fully close and reopen receiving apps after setup; they may still hold the previ
 The checker verifies installed and packaged DLL hashes before testing delivery.
 Internal delivery success does not prove OBS or Mirillis Action compatibility.
 Native tests now bind through the device moniker, following the OBS discovery path.
+Setup retires the obsolete Clatasha Camera (Preview) device entry from our first prototype.
+It keeps that prototype's files and COM class; no character assets are removed.
