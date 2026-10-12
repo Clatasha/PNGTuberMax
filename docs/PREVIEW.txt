@@ -13,7 +13,7 @@ Your private DERSPAWN artwork is not shipped in this application.
 
 VIRTUAL CAMERA — EXPERIMENTAL DIRECTSHOW BACKEND
 Click Camera setup once and approve the Windows administrator request.
-Setup runs without a visible PowerShell window and shows a normal Windows result dialog.
+Setup runs without a visible PowerShell window and shows its result in Camera Preferences.
 Restart the receiving app and select PNGTuber Max Camera. Press Start virtual camera.
 The camera sends the avatar scene only, with an opaque navy background and aspect-preserving
 letterboxing at 640x480 / 30 FPS. Editor controls, shadows and tooltips are excluded.
@@ -29,7 +29,8 @@ Front/back plush PNG mode, surface attachments, local face tracking and live eye
 have not been ported into this new foundation yet.
 
 VALIDATION
-The automated Windows build compiles the app and camera backend and runs a frame-contract test.
+The automated Windows build checks layout, audio-meter thresholds and the frame contract.
+It also registers the camera and tests real DirectShow frame delivery with a simulated publisher.
 Compilation does not establish webcam compatibility or the visual appearance on your machine.
 Receiving-app and Windows visual tests are required before using this preview for a live stream.
 

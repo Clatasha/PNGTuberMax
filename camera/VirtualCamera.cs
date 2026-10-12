@@ -16,7 +16,7 @@ public interface IMemInputPin {
  [PreserveSig]int ReceiveCanBlock();
 }
 [ComVisible(true),Guid("EEBEE603-EC24-4D77-8827-C8F799C81026"),ClassInterface(ClassInterfaceType.None)]
-public sealed class PuppetCamera:IBaseFilter,IAMFilterMiscFlags {
+public sealed class PuppetCamera:IBaseFilter,DirectShowLib.IMediaFilter,IAMFilterMiscFlags {
  public static readonly Guid Id=new Guid("EEBEE603-EC24-4D77-8827-C8F799C81026");
  internal FilterState State=FilterState.Stopped;internal IReferenceClock Clock;IFilterGraph graph;string name="PNGTuber Max Camera";readonly CameraPin pin;
  public PuppetCamera(){pin=new CameraPin(this);}
@@ -40,18 +40,18 @@ public sealed class CameraPin:IPin,IAMStreamConfig,IKsPropertySet {
  public CameraPin(PuppetCamera filter){owner=filter;}
  AMMediaType Type(){var header=new VideoInfoHeader{AvgTimePerFrame=Interval,BitRate=N*8*30,BmiHeader=new BitmapInfoHeader{Size=40,Width=W,Height=H,Planes=1,BitCount=32,Compression=0,ImageSize=N}};var mt=new AMMediaType{majorType=Video,subType=Rgb32,fixedSizeSamples=true,temporalCompression=false,sampleSize=N,formatType=Info,formatSize=Marshal.SizeOf(typeof(VideoInfoHeader))};mt.formatPtr=Marshal.AllocCoTaskMem(mt.formatSize);Marshal.StructureToPtr(header,mt.formatPtr,false);return mt;}
  bool Accept(AMMediaType mt){if(mt==null||mt.majorType!=Video||mt.subType!=Rgb32||mt.formatType!=Info||mt.formatPtr==IntPtr.Zero||mt.formatSize<Marshal.SizeOf(typeof(VideoInfoHeader)))return false;var h=(VideoInfoHeader)Marshal.PtrToStructure(mt.formatPtr,typeof(VideoInfoHeader));return h.BmiHeader.Width==W&&h.BmiHeader.Height==H&&h.BmiHeader.BitCount==32&&h.BmiHeader.Compression==0&&h.AvgTimePerFrame==Interval;}
- public int Connect(IPin other,AMMediaType proposed){lock(gate){if(connected!=null)return unchecked((int)0x80040204);if(proposed!=null&&!Accept(proposed))return unchecked((int)0x8004022a);var mt=Type();try{int hr=other.ReceiveConnection(this,mt);if(hr<0)return hr;input=other as IMemInputPin;if(input==null){other.Disconnect();return unchecked((int)0x80004002);}hr=input.GetAllocator(out allocator);if(hr<0||allocator==null)allocator=(IMemAllocator)Activator.CreateInstance(System.Type.GetTypeFromCLSID(new Guid("1e651cc0-b199-11d0-8212-00c04fc32c45")));
+ public int Connect(IPin other,IntPtr proposedPtr){var proposed=proposedPtr==IntPtr.Zero?null:(AMMediaType)Marshal.PtrToStructure(proposedPtr,typeof(AMMediaType));lock(gate){if(connected!=null)return unchecked((int)0x80040204);if(proposed!=null&&!Accept(proposed))return unchecked((int)0x8004022a);var mt=Type();try{IntPtr pointer=Marshal.AllocCoTaskMem(Marshal.SizeOf(typeof(AMMediaType)));int hr;try{Marshal.StructureToPtr(mt,pointer,false);hr=other.ReceiveConnection(this,pointer);}finally{Marshal.FreeCoTaskMem(pointer);}if(hr<0)return hr;input=other as IMemInputPin;if(input==null){other.Disconnect();return unchecked((int)0x80004002);}hr=input.GetAllocator(out allocator);if(hr<0||allocator==null)allocator=(IMemAllocator)Activator.CreateInstance(System.Type.GetTypeFromCLSID(new Guid("1e651cc0-b199-11d0-8212-00c04fc32c45")));
  var requested=new AllocatorProperties{cBuffers=3,cbBuffer=N,cbAlign=1};var actual=new AllocatorProperties();hr=allocator.SetProperties(requested,actual);if(hr<0||actual.cbBuffer<N){other.Disconnect();allocator=null;input=null;return hr<0?hr:unchecked((int)0x80004005);}hr=input.NotifyAllocator(allocator,false);if(hr<0){other.Disconnect();allocator=null;input=null;return hr;}connected=other;return 0;}finally{DsUtils.FreeAMMediaType(mt);}}}
- public int ReceiveConnection(IPin p,AMMediaType t){return unchecked((int)0x80040209);}
+ public int ReceiveConnection(IPin p,IntPtr t){return unchecked((int)0x80040209);}
  public int Disconnect(){Stop();lock(gate){connected=null;input=null;allocator=null;}return 0;}
  public int ConnectedTo(out IPin p){p=connected;return p==null?unchecked((int)0x80040209):0;}
- public int ConnectionMediaType(AMMediaType mt){if(connected==null)return unchecked((int)0x80040209);Copy(Type(),mt);return 0;}
+ public int ConnectionMediaType(IntPtr mt){if(mt==IntPtr.Zero)return unchecked((int)0x80004003);if(connected==null)return unchecked((int)0x80040209);Marshal.StructureToPtr(Type(),mt,false);return 0;}
  static void Copy(AMMediaType src,AMMediaType dest){dest.majorType=src.majorType;dest.subType=src.subType;dest.fixedSizeSamples=src.fixedSizeSamples;dest.temporalCompression=src.temporalCompression;dest.sampleSize=src.sampleSize;dest.formatType=src.formatType;dest.formatSize=src.formatSize;dest.formatPtr=src.formatPtr;dest.unkPtr=IntPtr.Zero;}
  public int QueryPinInfo(out PinInfo info){info=new PinInfo{filter=owner,dir=PinDirection.Output,name="Output"};return 0;}
  public int QueryDirection(out PinDirection dir){dir=PinDirection.Output;return 0;}public int QueryId(out string id){id="Output";return 0;}
- public int QueryAccept(AMMediaType mt){return Accept(mt)?0:1;}
+ public int QueryAccept(IntPtr mt){return mt!=IntPtr.Zero&&Accept((AMMediaType)Marshal.PtrToStructure(mt,typeof(AMMediaType)))?0:1;}
  public int EnumMediaTypes(out IEnumMediaTypes e){e=new MediaEnumerator(Type);return 0;}
- public int QueryInternalConnections(IPin[] pins,ref int count){count=0;return unchecked((int)0x80004001);}
+ public int QueryInternalConnections(IntPtr pins,ref int count){count=0;return unchecked((int)0x80004001);}
  public int EndOfStream(){return 0;}public int BeginFlush(){return 0;}public int EndFlush(){return 0;}public int NewSegment(long start,long stop,double rate){return 0;}
  public int SetFormat(AMMediaType mt){return Accept(mt)?0:unchecked((int)0x80070057);}
  public int GetFormat(out AMMediaType mt){mt=Type();return 0;}
@@ -68,5 +68,5 @@ public sealed class CameraPin:IPin,IAMStreamConfig,IKsPropertySet {
  catch{}finally{if(read!=null)read.Dispose();if(map!=null)map.Dispose();if(mutex!=null)mutex.Dispose();}}
 }
 [ComVisible(true),ClassInterface(ClassInterfaceType.None)]public class PinEnumerator:IEnumPins {IPin pin;int index;public PinEnumerator(IPin p,int i=0){pin=p;index=i;}public int Next(int n,IPin[] p,IntPtr fetched){int count=0;if(n>0&&index==0){p[0]=pin;index=1;count=1;}if(fetched!=IntPtr.Zero)Marshal.WriteInt32(fetched,count);return count==n?0:1;}public int Skip(int n){int old=index;index=Math.Min(1,index+n);return index-old==n?0:1;}public int Reset(){index=0;return 0;}public int Clone(out IEnumPins e){e=new PinEnumerator(pin,index);return 0;}}
-[ComVisible(true),ClassInterface(ClassInterfaceType.None)]public class MediaEnumerator:IEnumMediaTypes {Func<AMMediaType> factory;int index;public MediaEnumerator(Func<AMMediaType> f,int i=0){factory=f;index=i;}public int Next(int n,AMMediaType[] types,IntPtr fetched){int count=0;if(n>0&&index==0){types[0]=factory();index=1;count=1;}if(fetched!=IntPtr.Zero)Marshal.WriteInt32(fetched,count);return count==n?0:1;}public int Skip(int n){int old=index;index=Math.Min(1,index+n);return index-old==n?0:1;}public int Reset(){index=0;return 0;}public int Clone(out IEnumMediaTypes e){e=new MediaEnumerator(factory,index);return 0;}}
+[ComVisible(true),ClassInterface(ClassInterfaceType.None)]public class MediaEnumerator:IEnumMediaTypes {Func<AMMediaType> factory;int index;public MediaEnumerator(Func<AMMediaType> f,int i=0){factory=f;index=i;}public int Next(int n,IntPtr types,IntPtr fetched){if(types==IntPtr.Zero)return unchecked((int)0x80004003);int count=0;if(n>0&&index==0){var type=factory();IntPtr pointer=Marshal.AllocCoTaskMem(Marshal.SizeOf(typeof(AMMediaType)));Marshal.StructureToPtr(type,pointer,false);Marshal.WriteIntPtr(types,pointer);index=1;count=1;}if(fetched!=IntPtr.Zero)Marshal.WriteInt32(fetched,count);return count==n?0:1;}public int Skip(int n){int old=index;index=Math.Min(1,index+n);return index-old==n?0:1;}public int Reset(){index=0;return 0;}public int Clone(out IEnumMediaTypes e){e=new MediaEnumerator(factory,index);return 0;}}
 }
