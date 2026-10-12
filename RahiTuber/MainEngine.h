@@ -640,7 +640,7 @@ public:
             ImGui::TextWrapped("After setup, restart your receiving app and choose PNGTuber Max Camera. Starting output does not open another preview window.");
             ImGui::TextWrapped("640 x 480 / 30 FPS. Setup asks Windows for administrator access once; normal use does not.");
         }else if(ImGui::BeginTabBar("##DockPreferenceContent")){
-            bool rowTop=preferenceSection<=4;float unit=ImGui::GetFrameHeight();ImGui::PushStyleVar(ImGuiStyleVar_CellPadding,{2,2});
+            bool rowTop=preferenceSection>=5;float unit=ImGui::GetFrameHeight();ImGui::PushStyleVar(ImGuiStyleVar_CellPadding,{2,2});
             switch(preferenceSection){case 1:menuAdvancedWindowTab(rowTop);break;case 2:menuAdvancedAppearanceTab(rowTop,unit);break;case 3:menuAdvancedBehaviourTab(rowTop);break;case 4:menuAdvancedShortcutsTab(rowTop,style);break;case 5:menuAdvancedIntegrationTab(rowTop,unit);break;case 6:menuAdvancedPhonemesTab(rowTop,style);break;case 7:menuAdvancedTrackingTab(rowTop,style);break;}
             ImGui::PopStyleVar();ImGui::EndTabBar();
         }
@@ -2502,6 +2502,15 @@ public:
 		while (appConfig->_window.isOpen() && appConfig->_window.pollEvent(evt))
 		{
             if (evt.type == sf::Event::Resized && (evt.size.width == 0 || evt.size.height == 0)) continue;
+            if (evt.type == sf::Event::Resized && (evt.size.width != appConfig->_scrW || evt.size.height != appConfig->_scrH)) {
+                appConfig->_scrW = evt.size.width; appConfig->_scrH = evt.size.height;
+                if (!appConfig->_isFullScreen) {appConfig->_minScrW=evt.size.width/appConfig->mainWindowScaling;appConfig->_minScrH=evt.size.height/appConfig->mainWindowScaling;}
+                appConfig->_window.setView(sf::View(sf::FloatRect(0,0,appConfig->_scrW,appConfig->_scrH)));
+                auto settings=appConfig->_window.getSettings();
+                appConfig->_menuRT.create(evt.size.width,evt.size.height,settings);
+                appConfig->_layersRT.create(evt.size.width,evt.size.height,settings);appConfig->_layersRT.setSmooth(true);
+                appConfig->_menuPlane.setSize({appConfig->_scrW,appConfig->_scrH});
+            }
 			if (evt.type == evt.KeyPressed || evt.type == evt.MouseButtonPressed)
 			{
 				appConfig->_window.requestFocus();
