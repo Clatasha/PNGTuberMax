@@ -51,7 +51,7 @@ bool SpriteSheet::PrepareDraw(bool forceVisible)
 void SpriteSheet::Draw(sf::RenderTarget* target,const sf::RenderStates& states){if(PrepareDraw())target->draw(_sprite,states);}
 const std::vector<MaxPlushSpan>& SpriteSheet::PlushContour(){
  auto rect=_sprite.getTextureRect();auto handle=_tex?_tex->getNativeHandle():0;
- if(handle!=_plushTextureHandle){_plushImage=_tex->copyToImage();_plushTextureHandle=handle;_plushRows.clear();}
+ if(handle!=_plushTextureHandle){_plushImage=_tex->copyToImage();if(_texSmooth&&_frameRects.size()<=1)_tex->generateMipmap();_plushTextureHandle=handle;_plushRows.clear();}
  if(_plushRows.empty()||rect!=_plushFrame){_plushFrame=rect;auto size=_plushImage.getSize();_plushRows=MaxPlushContour(_plushImage.getPixelsPtr(),size.x,size.y,rect.left,rect.top,rect.width,rect.height);}
  return _plushRows;
 }

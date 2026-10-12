@@ -7,6 +7,7 @@
 
 #include "defines.h"
 #include "MaxUi.h"
+#include "MaxPlushMath.h"
 #include "Shaders.h"
 
 #include "EffectManager.h"
@@ -54,6 +55,14 @@ void SaveRTImage(sf::RenderTexture& rt, const std::string& name)
 }
 
 //#define DEBUG_CLIP_RENDERING
+
+bool LayerManager::BeginPlushTurn(){
+ if(IsLoading())return false;auto* layer=GetLayer(_activePlushLayer);
+ auto usable=[](LayerInfo* body){return body&&!body->_isFolder&&body->_plushEnabled&&body->EvaluateLayerVisibility()&&body->_sprites[SP_IDLE]->HasTexture()&&body->_sprites[SP_PLUSH_BACK]->HasTexture();};
+ if(!usable(layer)){layer=nullptr;for(auto& candidate:_layers)if(usable(&candidate)){layer=&candidate;break;}}
+ if(!layer)return false;_turningPlushLayer=layer->_id;_activePlushLayer=layer->_id;layer->_plushYaw=layer->_plushRenderedYaw;layer->_plushFollowMouse=false;return true;
+}
+void LayerManager::DragPlushTurn(float delta,float viewportWidth){auto* layer=GetLayer(_turningPlushLayer);if(!layer){EndPlushTurn();return;}layer->_plushYaw=MaxPlushDragAngle(layer->_plushYaw,delta,viewportWidth);layer->_plushRenderedYaw=layer->_plushYaw;}
 
 void LayerManager::LayerInfo::DrawSprites(sf::RenderTarget* target,const sf::RenderStates& states){
     float turn=_plushYaw;
@@ -702,6 +711,7 @@ void LayerManager::DoMenuBarLogic()
 
 	if (!_loadingFinished)
 		return;
+    if(_saveShortcutPending){_saveXMLOpen=!_saveAsShortcutPending;_saveAsXMLOpen=_saveAsShortcutPending;_saveShortcutPending=_saveAsShortcutPending=false;}
 
 	//////////////////////////////// NEW ///////////////////////////////////
 
@@ -868,6 +878,7 @@ This works best when all your sprite images are located in a subfolder of RahiTu
 		ImGui::EndPopup();
 	}
 
+	if (_saveXMLOpen && _fullLoadedXMLPath.empty()){_saveXMLOpen=false;_saveAsXMLOpen=true;}
 	if (_saveXMLOpen)
 	{
 		if (SaveLayers(_savingXMLPath = _fullLoadedXMLPath))
@@ -877,7 +888,7 @@ This works best when all your sprite images are located in a subfolder of RahiTu
 	}
 
 	if (_saveAsXMLOpen)
-		folderSelect.SetStartingDir(_savingXMLPath = _fullLoadedXMLPath);
+		folderSelect.SetStartingDir(_savingXMLPath = _fullLoadedXMLPath.empty()?fs::path(_appConfig->_appLocation).append(_layerSetName.empty()?"PNGTuberMax.xml":_layerSetName+".xml").string():_fullLoadedXMLPath);
 	if (_saveLayersPortable)
 		folderSelect.SetStartingDir(fs::path(_appConfig->_appLocation).append(_layerSetName + (_optimisePortable ? "_OPT.xml" : ".xml")).string());
 	if (folderSelect.render(_saveAsXMLOpen, _savingXMLPath, true))
@@ -960,9 +971,9 @@ This works best when all your sprite images are located in a subfolder of RahiTu
 void LayerManager::DrawButtonsLayerSetUI()
 {
     TextCentered(ANSIToUTF8(_layerSetName).c_str());float size=24*_appConfig->scalingFactor;auto color=toSFColor(ImGui::GetStyleColorVec4(ImGuiCol_Text));
-    auto action=[&](const char* id,sf::Texture* icon,bool& flag,const char* label,const char* help){ImGui::TableNextColumn();flag=MaxUi::IconButton(id,*icon,sf::Vector2f(size,size),sf::Color::Transparent,color);ToolTip(help,&_appConfig->_hoverTimer);ImGui::TextUnformatted(label);};
+    auto action=[&](const char* id,sf::Texture* icon,bool& flag,const char* label,const char* help){ImGui::TableNextColumn();flag=MaxUi::IconLabelButton(id,label,icon,size);ToolTip(help,&_appConfig->_hoverTimer);};
     if(ImGui::BeginTable("##projectFiles",4,ImGuiTableFlags_SizingStretchSame)){action("new",_newFileIcon,_newXMLOpen,"New","New layer set");action("open",_openFileIcon,_loadXMLOpen,"Open","Open XML project. Hold Ctrl to merge into this project.");if(_loadXMLOpen)_mergingLayerSet=ImGui::GetIO().KeyCtrl;action("save",_saveIcon,_saveXMLOpen,"Save","Save project");action("saveas",_saveAsIcon,_saveAsXMLOpen,"Save as","Save as another project");ImGui::EndTable();}
-    if(ImGui::BeginTable("##projectLayers",5,ImGuiTableFlags_SizingStretchSame)){action("portable",_makePortableIcon,_makePortableOpen,"Portable","Package this project with its images");action("reload",_reloadIcon,_reloadXMLOpen,"Reload","Reload project");action("layer",_newLayerIcon,_newLayerOpen,"Layer","Add an image layer");action("folder",_newFolderIcon,_newFolderOpen,"Folder","Add a folder");action("states",_statesIcon,_editStatesOpen,"States","Configure expressions and shortcuts");ImGui::EndTable();}
+    if(ImGui::BeginTable("##projectLayers",3,ImGuiTableFlags_SizingStretchSame)){action("portable",_makePortableIcon,_makePortableOpen,"Portable","Package this project with its images");action("reload",_reloadIcon,_reloadXMLOpen,"Reload","Reload project");action("layer",_newLayerIcon,_newLayerOpen,"Layer","Add an image layer");action("folder",_newFolderIcon,_newFolderOpen,"Folder","Add a folder");action("states",_statesIcon,_editStatesOpen,"States","Configure expressions and shortcuts");ImGui::EndTable();}
 }
 
 void LayerManager::DrawGUI(ImGuiStyle& style, float maxHeight)
@@ -990,6 +1001,7 @@ void LayerManager::DrawGUI(ImGuiStyle& style, float maxHeight)
 
 		ImGui::PopStyleVar();
 
+        if(!_saveNotice.empty()&&_saveNoticeClock.getElapsedTime().asSeconds()<6)ImGui::TextWrapped("%s",_saveNotice.c_str());
 		if (_errorMessage.empty() == false)
 		{
 			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0, 0.0, 0.0, 1.0));
@@ -1165,7 +1177,7 @@ void LayerManager::DrawGUI(ImGuiStyle& style, float maxHeight)
 		{
 			float topBarHeight = ImGui::GetCursorPosY() - topBarBegin;
 
-			ImGui::BeginChild(ImGuiID(10001), ImVec2(-1, (maxHeight - topBarHeight)), false, ImGuiWindowFlags_AlwaysVerticalScrollbar);
+			ImGui::BeginChild(ImGuiID(10001), ImVec2(-1, std::max(120.f,maxHeight - topBarHeight)), false, ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_HorizontalScrollbar);
 
 			bool outOfFocus = !ImGui::IsWindowFocused(ImGuiFocusedFlags_RootWindow | ImGuiFocusedFlags_NoPopupHierarchy);
 
@@ -2701,6 +2713,7 @@ bool LayerManager::SaveLayers(const std::string& settingsFileName, bool makePort
 	logToFile(_appConfig, "Saved Layer Set " + outFile);
 
 	_lastSavedLocation = outFile;
+    _saveNotice="Saved: "+fs::path(outFile).filename().string();_saveNoticeClock.restart();
 
 	return true;
 }
@@ -5727,7 +5740,9 @@ bool LayerManager::LayerInfo::DrawGUI(ImGuiStyle& style, int layerID)
 
 		float nameEnd = ImGui::CalcTextSize(name.c_str()).x + UIUnit;
 
-		if (ImGui::CollapsingHeader(ANSIToUTF8(name).c_str(), ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_AllowOverlap))
+		bool expanded=ImGui::CollapsingHeader(ANSIToUTF8(name).c_str(), ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_AllowOverlap);
+        if(ImGui::IsItemClicked())_parent->_activePlushLayer=_id;
+        if (expanded)
 		{
 			if (_scrollToHere)
 			{
@@ -5778,54 +5793,19 @@ bool LayerManager::LayerInfo::DrawGUI(ImGuiStyle& style, int layerID)
 			{
 				_parent->_hoveredLayers.push_back(_id);
 
-				float imgBtnWidth = UIUnit * 6 - 2;
-				float smlImageBtnWidth = UIUnit * 3.5 - 2;
-				float animBtnWidth = UIUnit;
-				float checkboxPos;
-
-				if (ImGui::BeginTable("imagebuttons", 3, ImGuiTableFlags_SizingFixedSame))
-				{
-					ImGui::TableNextColumn();
-
-					ImGui::AlignTextToFramePadding();
-					SpriteSelectGUI(SP_IDLE, imgBtnWidth, animBtnWidth, btnColor, uiScale);
-
-					checkboxPos = ImGui::GetCursorPosY();
-
-					ImGui::TableNextColumn();
-
-					if (_swapWhenTalking)
-					{
-						ImGui::AlignTextToFramePadding();
-						SpriteSelectGUI(SP_TALK, imgBtnWidth, animBtnWidth, btnColor, uiScale);
-					}
-
-					ImGui::TableNextColumn();
-
-					if (_useBlinkFrame)
-					{
-						float blinkBtnSize = _blinkWhileTalking ? smlImageBtnWidth : imgBtnWidth;
-
-						ImGui::AlignTextToFramePadding();
-						ImGui::Text("Blink");
-						SpriteSelectGUI(SP_BLINK, blinkBtnSize, animBtnWidth, btnColor, uiScale, true);
-
-						if (_blinkWhileTalking)
-						{
-							SpriteSelectGUI(SP_TALKBLINK, blinkBtnSize, animBtnWidth, btnColor, uiScale, true);
-							checkboxPos = ImGui::GetCursorPosY() - ImGui::GetFrameHeightWithSpacing();
-						}
-					}
-
-					ImGui::EndTable();
-				}
-
-				ImGui::SetCursorPosY(checkboxPos);
-				ImGui::Checkbox("Restart anims on becoming visible", &_restartAnimsOnVisible);
-				ToolTip("Restarts all this layer's sprite-sheets whenever\nthis layer is made visible", &_parent->_appConfig->_hoverTimer);
+                float animBtnWidth=UIUnit;
+                float imgBtnWidth=std::max(40.f,std::min(UIUnit*4,ImGui::GetContentRegionAvail().x-animBtnWidth*2-style.ItemSpacing.x*3));
+                float smlImageBtnWidth=imgBtnWidth;
+                SpriteSelectGUI(SP_IDLE,imgBtnWidth,animBtnWidth,btnColor,uiScale);
+                ImGui::Separator();ImGui::Checkbox("Talking enabled",&_swapWhenTalking);
+                if(_swapWhenTalking)SpriteSelectGUI(SP_TALK,imgBtnWidth,animBtnWidth,btnColor,uiScale);
+                ImGui::Separator();ImGui::Checkbox("Blinking enabled",&_useBlinkFrame);
+                if(_useBlinkFrame){SpriteSelectGUI(SP_BLINK,imgBtnWidth,animBtnWidth,btnColor,uiScale);ImGui::Checkbox("Blink while talking",&_blinkWhileTalking);if(_blinkWhileTalking&&_swapWhenTalking)SpriteSelectGUI(SP_TALKBLINK,imgBtnWidth,animBtnWidth,btnColor,uiScale);}
+                ImGui::Separator();ImGui::Checkbox("Restart anims on becoming visible",&_restartAnimsOnVisible);
 
                 if (LesserCollapsingHeader("Plush PNG mode...")) {
-                    ImGui::Checkbox("Join front and back PNGs",&_plushEnabled);
+                    if(ImGui::Checkbox("Join front and back PNGs",&_plushEnabled))_parent->_activePlushLayer=_id;
+                    ImGui::TextWrapped("Hold Alt and drag with the left mouse button in the preview to turn this body.");
                     ImGui::TextWrapped("Idle is the front view. Add a back view below, then adjust the roundness and turn.");
                     SpriteSelectGUI(SP_PLUSH_BACK,smlImageBtnWidth,animBtnWidth,btnColor,uiScale,false,true);
                     ImGui::TextUnformatted("Roundness");ImGui::SetNextItemWidth(-1);ImGui::SliderFloat("##plushRoundness",&_plushRoundness,.05f,1.25f,"%.2f");
@@ -5957,55 +5937,12 @@ bool LayerManager::LayerInfo::DrawGUI(ImGuiStyle& style, int layerID)
 					ImGui::Checkbox("Phoneme Detection", &_usePhonemes);
 					ToolTip("Use phoneme detection to switch sprites when talking", &_parent->_appConfig->_hoverTimer);
 
-					ImGui::SameLine();
 					ImGui::Checkbox("Separate Tints", &_separatePhonemeTints);
 					ToolTip("Define separate tint colours for each phoneme", &_parent->_appConfig->_hoverTimer);
 
-					if (_usePhonemes)
-					{
-						if(ImGui::BeginTable((_id + "ph_tab_1").c_str(), 5, ImGuiTableFlags_SizingStretchProp))
-						{
-							ImGui::TableSetupColumn("##padL", ImGuiTableColumnFlags_WidthStretch);
-							ImGui::TableSetupColumn("##1", ImGuiTableColumnFlags_WidthFixed, UIUnit * 6);
-							ImGui::TableSetupColumn("##2", ImGuiTableColumnFlags_WidthFixed, UIUnit * 6);
-							ImGui::TableSetupColumn("##3", ImGuiTableColumnFlags_WidthFixed, UIUnit * 6);
-							ImGui::TableSetupColumn("##padR", ImGuiTableColumnFlags_WidthStretch);
-
-							ImGui::TableNextColumn();
-							ImGui::TableNextColumn();
-							// A vowel
-							SpriteSelectGUI(SP_PH_A, smlImageBtnWidth, animBtnWidth, btnColor, uiScale, false, !_separatePhonemeTints);
-
-							ImGui::TableNextColumn();
-							// E vowel
-							SpriteSelectGUI(SP_PH_E, smlImageBtnWidth, animBtnWidth, btnColor, uiScale, false, !_separatePhonemeTints);
-
-							ImGui::TableNextColumn();
-							// S sibilance
-							SpriteSelectGUI(SP_PH_S, smlImageBtnWidth, animBtnWidth, btnColor, uiScale, false, !_separatePhonemeTints);
-
-							ImGui::EndTable();
-						}
-
-						if(ImGui::BeginTable((_id + "ph_tab_2").c_str(), 4, ImGuiTableFlags_SizingStretchProp))
-						{
-							ImGui::TableSetupColumn("##padL", ImGuiTableColumnFlags_WidthStretch);
-							ImGui::TableSetupColumn("##1", ImGuiTableColumnFlags_WidthFixed, UIUnit * 6);
-							ImGui::TableSetupColumn("##2", ImGuiTableColumnFlags_WidthFixed, UIUnit * 6);
-							ImGui::TableSetupColumn("##padR", ImGuiTableColumnFlags_WidthStretch);
-
-							ImGui::TableNextColumn();
-							ImGui::TableNextColumn();
-							// P/B plosive
-							SpriteSelectGUI(SP_PH_P, smlImageBtnWidth, animBtnWidth, btnColor, uiScale, false, !_separatePhonemeTints);
-
-							ImGui::TableNextColumn();
-							// P/B plosive
-							SpriteSelectGUI(SP_PH_W, smlImageBtnWidth, animBtnWidth, btnColor, uiScale, false, !_separatePhonemeTints);
-
-							ImGui::EndTable();
-						}
-					}
+					if (_usePhonemes) {
+                        for(auto type:{SP_PH_A,SP_PH_E,SP_PH_S,SP_PH_P,SP_PH_W})SpriteSelectGUI(type,smlImageBtnWidth,animBtnWidth,btnColor,uiScale,false,!_separatePhonemeTints);
+                    }
 
 					BetterUnindent(_id + "talk");
 				}
@@ -6023,51 +5960,9 @@ bool LayerManager::LayerInfo::DrawGUI(ImGuiStyle& style, int layerID)
 
 					SpriteSelectGUI(SP_SCREAM, imgBtnWidth, animBtnWidth, btnColor, uiScale);
 
-					if (_usePhonemes)
-					{
-						if (ImGui::BeginTable((_id + "phsc_tab_1").c_str(), 5, ImGuiTableFlags_SizingStretchProp))
-						{
-							ImGui::TableSetupColumn("##padL", ImGuiTableColumnFlags_WidthStretch);
-							ImGui::TableSetupColumn("##1", ImGuiTableColumnFlags_WidthFixed, UIUnit * 6);
-							ImGui::TableSetupColumn("##2", ImGuiTableColumnFlags_WidthFixed, UIUnit * 6);
-							ImGui::TableSetupColumn("##3", ImGuiTableColumnFlags_WidthFixed, UIUnit * 6);
-							ImGui::TableSetupColumn("##padR", ImGuiTableColumnFlags_WidthStretch);
-
-							ImGui::TableNextColumn();
-							ImGui::TableNextColumn();
-							// A vowel
-							SpriteSelectGUI(SP_SC_PH_A, smlImageBtnWidth, animBtnWidth, btnColor, uiScale, false, !_separatePhonemeTints);
-
-							ImGui::TableNextColumn();
-							// E vowel
-							SpriteSelectGUI(SP_SC_PH_E, smlImageBtnWidth, animBtnWidth, btnColor, uiScale, false, !_separatePhonemeTints);
-
-							ImGui::TableNextColumn();
-							// S sibilance
-							SpriteSelectGUI(SP_SC_PH_S, smlImageBtnWidth, animBtnWidth, btnColor, uiScale, false, !_separatePhonemeTints);
-
-							ImGui::EndTable();
-						}
-
-						if (ImGui::BeginTable((_id + "phsc_tab_2").c_str(), 4, ImGuiTableFlags_SizingStretchProp))
-						{
-							ImGui::TableSetupColumn("##padL", ImGuiTableColumnFlags_WidthStretch);
-							ImGui::TableSetupColumn("##1", ImGuiTableColumnFlags_WidthFixed, UIUnit * 6);
-							ImGui::TableSetupColumn("##2", ImGuiTableColumnFlags_WidthFixed, UIUnit * 6);
-							ImGui::TableSetupColumn("##padR", ImGuiTableColumnFlags_WidthStretch);
-
-							ImGui::TableNextColumn();
-							ImGui::TableNextColumn();
-							// P/B plosive
-							SpriteSelectGUI(SP_SC_PH_P, smlImageBtnWidth, animBtnWidth, btnColor, uiScale, false, !_separatePhonemeTints);
-
-							ImGui::TableNextColumn();
-							// P/B plosive
-							SpriteSelectGUI(SP_SC_PH_W, smlImageBtnWidth, animBtnWidth, btnColor, uiScale, false, !_separatePhonemeTints);
-
-							ImGui::EndTable();
-						}
-					}
+					if (_usePhonemes) {
+                        for(auto type:{SP_SC_PH_A,SP_SC_PH_E,SP_SC_PH_S,SP_SC_PH_P,SP_SC_PH_W})SpriteSelectGUI(type,smlImageBtnWidth,animBtnWidth,btnColor,uiScale,false,!_separatePhonemeTints);
+                    }
 
 					AddResetButton("screamThresh", _screamThreshold, 0.15f, _parent->_appConfig, &style, true, &barPos);
 					ImVec2 barPos = ImGui::GetCursorScreenPos();

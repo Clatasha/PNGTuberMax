@@ -55,3 +55,9 @@ A body layer can join its Idle/front sprite to a Back view PNG, with roundness, 
 slider and optional mouse turning. The two PNG surfaces share silhouette seams; no 3D rig
 is used. Project persistence and portable asset copies include the rear image and settings.
 Separate accessories retain their existing motion attachments. Surface attachment is future work.
+
+### 0.1.4 editor fixes
+Alt-drag rotates the selected plush body in the preview. Facing-range clipping, continuous
+rear UVs and optional GPU mipmaps improve rotated PNG rendering. Sprite inputs stack in the
+studio panel with explicit blinking controls and scrolling. Save toolbar labels are clickable;
+new projects open Save As, shortcuts work, and successful saves show a receipt in the editor.

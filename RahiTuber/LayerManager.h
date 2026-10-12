@@ -609,6 +609,13 @@ public:
 	void MoveLayerDown(int moveDown);
 	void MoveLayerTo(int toMove, int position, bool skipFolders = false);
 
+    std::string _activePlushLayer,_turningPlushLayer,_saveNotice;
+    sf::Clock _saveNoticeClock;
+    bool _saveShortcutPending=false,_saveAsShortcutPending=false;
+    void RequestSave(bool saveAs=false){_saveShortcutPending=true;_saveAsShortcutPending=saveAs;}
+    bool BeginPlushTurn();
+    void DragPlushTurn(float delta,float viewportWidth);
+    void EndPlushTurn(){_turningPlushLayer.clear();}
 	bool HandleLayerDrag(float mouseX, float mouseY, bool mousePressed);
 	int GetLayerUnderCursor(float mouseX, float mouseY);
 

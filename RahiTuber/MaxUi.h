@@ -1,6 +1,8 @@
 // Original PNGTuber Max interface components by Clatasha, 2026.
 #pragma once
 #include <utility>
+#include <string>
+#include <SFML/Graphics/Texture.hpp>
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "imgui-SFML.h"
@@ -28,6 +30,12 @@ template<typename... Args> inline bool IconButton(Args&&... args) {
 inline bool IconButton(const char* id,const sf::Texture& texture,const sf::Vector2f& size,const sf::Color& bg=sf::Color::Transparent,const sf::Color& tint=sf::Color::White) {
     auto* draw=ImGui::GetWindowDrawList();ImDrawListSplitter channels;channels.Split(draw,2);channels.SetCurrentChannel(draw,1);
     bool hit=ImGui::ImageButton(id,texture,size,bg,tint);FinishRaised(draw,channels);return hit;
+}
+inline bool IconLabelButton(const char* id,const char* label,const sf::Texture* icon,float iconSize) {
+ const float width=ImGui::GetContentRegionAvail().x,font=ImGui::GetFontSize(),height=iconSize+font+12;
+ bool pressed=Button((std::string("##")+id).c_str(),{width,height});auto a=ImGui::GetItemRectMin();auto* draw=ImGui::GetWindowDrawList();
+ if(icon)draw->AddImage(static_cast<ImTextureID>(icon->getNativeHandle()),{a.x+(width-iconSize)*.5f,a.y+4},{a.x+(width+iconSize)*.5f,a.y+4+iconSize});
+ auto text=ImGui::CalcTextSize(label);draw->AddText({a.x+(width-text.x)*.5f,a.y+iconSize+7},ImGui::GetColorU32(ImGuiCol_Text),label);return pressed;
 }
 inline void ApplyStyle(ImGuiStyle& s,float scale) {
     s.WindowRounding=14*scale;s.ChildRounding=10*scale;s.PopupRounding=10*scale;s.FrameRounding=6*scale;s.GrabRounding=5*scale;s.TabRounding=6*scale;

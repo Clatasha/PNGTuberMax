@@ -78,3 +78,15 @@ target_compile_features(MaxPlushMathTests PRIVATE cxx_std_17)
 add_executable(MaxPlushRenderTests tests/PlushRenderTests.cpp)
 target_compile_features(MaxPlushRenderTests PRIVATE cxx_std_17)
 target_link_libraries(MaxPlushRenderTests PRIVATE sfml-graphics sfml-window sfml-system)
+
+add_executable(MaxEditorTests tests/EditorTests.cpp
+ RahiTuber/LayerManager.cpp RahiTuber/SpriteSheet.cpp RahiTuber/TextureManager.cpp
+ RahiTuber/EffectManager.cpp RahiTuber/GamePad.cpp RahiTuber/file_browser_modal.cpp
+ RahiTuber/imgui-sfml/imgui-SFML.cpp)
+target_compile_features(MaxEditorTests PRIVATE cxx_std_17)
+get_target_property(MAX_EDITOR_INCLUDES RahiTuber INCLUDE_DIRECTORIES)
+get_target_property(MAX_EDITOR_DEFINES RahiTuber COMPILE_DEFINITIONS)
+get_target_property(MAX_EDITOR_LIBRARIES RahiTuber LINK_LIBRARIES)
+target_include_directories(MaxEditorTests PRIVATE ${MAX_EDITOR_INCLUDES})
+target_compile_definitions(MaxEditorTests PRIVATE ${MAX_EDITOR_DEFINES})
+target_link_libraries(MaxEditorTests PRIVATE ${MAX_EDITOR_LIBRARIES})

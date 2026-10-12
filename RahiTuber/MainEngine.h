@@ -169,6 +169,7 @@ public:
 
 	Shader _FXAAShader;
     MaxCamera camera;
+    bool plushDragging=false;float plushDragX=0;
     int preferenceSection=0;float meterPeak=0;sf::Clock meterClock;
     MaxWorkspace Workspace(){return MaxWorkspace::Make(appConfig->_scrW,appConfig->_scrH,appConfig->_scrW,appConfig->_scrH);}
 
@@ -558,7 +559,7 @@ public:
 			ImGui::SetWindowSize({ 400 * appConfig->scalingFactor,-1 });
 
             ImGui::SeparatorText("PNGTuber Max by Clatasha");
-            ImGui::TextWrapped("PNGTuber Max 0.1.3 preview. Virtual camera output is integrated; plush PNG mode and face tracking are next.");
+            ImGui::TextWrapped("PNGTuber Max 0.1.4 preview. Virtual camera output is integrated; plush PNG mode and face tracking are next.");
             if (MaxUi::Button("PNGTuber Max releases", { -1, UIUnit }))
                 OsOpenInShell("https://github.com/Clatasha/PNGTuberMax/releases");
             ToolTip("Opens PNGTuber Max releases on GitHub.", &appConfig->_hoverTimer);
@@ -614,7 +615,7 @@ public:
             ImGui::TextWrapped("RahiTuber (c) 2018-%d Rahisaurus (Tom Rule)", year);
 			ImGui::PopStyleColor(2);
 
-			ImGui::TextWrapped("PNGTuber Max 0.1.3 preview / RahiTuber engine %.3f", appConfig->_versionNumber);
+			ImGui::TextWrapped("PNGTuber Max 0.1.4 preview / RahiTuber engine %.3f", appConfig->_versionNumber);
 
 			ImGui::Separator();
 			if (MaxUi::Button("OK", { -1,20 }))
@@ -1473,7 +1474,7 @@ public:
 
 		if (uiConfig->_audioExpanded)
 		{
-			ImGui::BeginTable("##audioOptions", 3, ImGuiTableFlags_SizingStretchProp);
+			ImGui::BeginTable("##audioOptions", 1, ImGuiTableFlags_SizingStretchProp);
 			ImGui::TableNextColumn();
 
 			ImGui::PushItemWidth(100);
@@ -1807,10 +1808,11 @@ public:
         ImGui::SFML::Update(appConfig->_window,appConfig->_timer.getElapsedTime());auto& style=ImGui::GetStyle();auto& io=ImGui::GetIO();sf::Color backdrop;
         if(!uiConfig->_styleLoaded||uiConfig->_theme!=uiConfig->_lastTheme)RefreshStyle(style,io,backdrop);io.FontGlobalScale=appConfig->scalingFactor*.5f;
         auto layout=Workspace();ImGui::SetNextWindowPos({layout.left.x,layout.left.y});ImGui::SetNextWindowSize({layout.left.w,layout.left.h});
-        ImGui::Begin("Studio##leftDock",nullptr,ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoScrollbar);
+        ImGui::Begin("Studio##leftDock",nullptr,ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_AlwaysVerticalScrollbar);
         MaxUi::BrandHeader();float unit=ImGui::GetFrameHeight();
-        if(MaxUi::Button(camera.On()?"Stop camera":"Start camera")){if(camera.On())camera.Stop();else camera.Start();}ImGui::SameLine();if(MaxUi::Button("Setup")){preferenceSection=0;camera.Setup(appConfig->_appLocation);}ImGui::SameLine();menuHelp(style);
-        ImGui::TextColored(ImVec4(.55f,.73f,.95f,1),"%s",camera.On()?"Camera sending":"Camera off / see Camera preferences");
+        float cameraButtonWidth=(ImGui::GetContentRegionAvail().x-style.ItemSpacing.x)*.5f;
+        if(MaxUi::Button(camera.On()?"Stop camera":"Start camera",{cameraButtonWidth,0})){if(camera.On())camera.Stop();else camera.Start();}ImGui::SameLine();if(MaxUi::Button("Setup",{cameraButtonWidth,0})){preferenceSection=0;camera.Setup(appConfig->_appLocation);}menuHelp(style);
+        ImGui::TextWrapped("%s",camera.On()?"Camera sending":"Camera off / see Camera preferences");
         float reserve=(uiConfig->_audioExpanded?9.7f:6.3f)*unit+(audioConfig->_devIdx==paNoDevice?3.5f*unit:0.f);
         float managerHeight=std::max(80.f,ImGui::GetContentRegionAvail().y-reserve);layerMan->DrawGUI(style,managerHeight);
         ImGui::Separator();menuAudio(style);ImGui::Separator();menuPresets(style);
@@ -1818,7 +1820,7 @@ public:
         ImGui::End();menuAdvanced(style);
         
         // Scene is rendered separately below; only the heading belongs to the editor.
-        auto* foreground=ImGui::GetForegroundDrawList();foreground->AddText({layout.canvas.x+12,22},IM_COL32(185,213,242,255),"LIVE AVATAR PREVIEW");
+        auto* foreground=ImGui::GetForegroundDrawList();foreground->AddText({layout.canvas.x+12,19},IM_COL32(185,213,242,255),"LIVE AVATAR PREVIEW");foreground->AddText({layout.canvas.x+12,37},IM_COL32(125,158,196,255),"Alt + left drag: turn");
         if(ImGui::IsMouseClicked(0)&&io.MousePos.x>layout.canvas.x&&io.MousePos.x<layout.canvas.x+layout.canvas.w&&io.MousePos.y>layout.canvas.y&&io.MousePos.y<layout.canvas.y+layout.canvas.h){ImGui::SetWindowFocus(nullptr);uiConfig->_advancedMenuShowing=false;}
         ImGui::EndFrame();ImGui::SFML::Render(appConfig->_menuRT);uiConfig->_firstMenu=false;
     }
@@ -2459,6 +2461,17 @@ public:
 				appConfig->_window.requestFocus();
 			}
 
+            bool alt=sf::Keyboard::isKeyPressed(sf::Keyboard::LAlt)||sf::Keyboard::isKeyPressed(sf::Keyboard::RAlt);
+            if(evt.type==sf::Event::KeyPressed&&evt.key.code==sf::Keyboard::S&&evt.key.control&&!layerMan->PendingHotkey()){layerMan->RequestSave(evt.key.shift);ImGui::SFML::ProcessEvent(appConfig->_window,evt);continue;}
+            if(evt.type==sf::Event::MouseButtonPressed&&evt.mouseButton.button==sf::Mouse::Left&&alt&&!layerMan->PendingHotkey()&&!ImGui::IsPopupOpen("",ImGuiPopupFlags_AnyPopupId|ImGuiPopupFlags_AnyPopupLevel)){
+                auto canvas=Workspace().canvas;float x=evt.mouseButton.x,y=evt.mouseButton.y;
+                if(x>=canvas.x&&x<canvas.x+canvas.w&&y>=canvas.y&&y<canvas.y+canvas.h&&layerMan->BeginPlushTurn()){plushDragging=true;plushDragX=x;ImGui::SFML::ProcessEvent(appConfig->_window,evt);continue;}
+            }
+            if(plushDragging){
+                bool finished=evt.type==sf::Event::LostFocus||evt.type==sf::Event::Closed||(evt.type==sf::Event::MouseButtonReleased&&evt.mouseButton.button==sf::Mouse::Left)||(evt.type==sf::Event::KeyReleased&&(evt.key.code==sf::Keyboard::LAlt||evt.key.code==sf::Keyboard::RAlt));
+                if(finished){plushDragging=false;layerMan->EndPlushTurn();}
+                if(evt.type==sf::Event::MouseMoved){if(alt&&sf::Mouse::isButtonPressed(sf::Mouse::Left)){layerMan->DragPlushTurn(evt.mouseMove.x-plushDragX,Workspace().canvas.w);plushDragX=evt.mouseMove.x;}else{plushDragging=false;layerMan->EndPlushTurn();}ImGui::SFML::ProcessEvent(appConfig->_window,evt);continue;}
+            }
 			if (uiConfig->_menuShowing && !uiConfig->_presetPopupActive && !uiConfig->_helpPopupActive &&
 				appConfig->_menuWindow.isOpen() == false && (evt.type == evt.MouseButtonPressed || evt.type == evt.MouseButtonReleased || evt.type == evt.MouseMoved))
 			{
