@@ -98,3 +98,16 @@ if(WIN32)
  add_executable(MaxCameraNegotiationTests tests/CameraNegotiationTests.cpp)
  target_link_libraries(MaxCameraNegotiationTests PRIVATE ole32 oleaut32 strmiids)
 endif()
+
+option(PNGMAX_TEST_OBS_CAPTURE "Test camera with OBS's capture library (test dependency only)" OFF)
+if(WIN32 AND PNGMAX_TEST_OBS_CAPTURE)
+ include(FetchContent)
+ FetchContent_Declare(max_obs_capture
+  GIT_REPOSITORY https://github.com/obsproject/libdshowcapture.git
+  GIT_TAG c13d4b7b0c66979396ba0a9060c9aafc15bb7b22)
+ FetchContent_MakeAvailable(max_obs_capture)
+ add_executable(MaxObsCameraTests tests/ObsCameraTests.cpp)
+ target_include_directories(MaxObsCameraTests PRIVATE ${max_obs_capture_SOURCE_DIR})
+ target_link_libraries(MaxObsCameraTests PRIVATE libdshowcapture ole32 oleaut32)
+ target_compile_features(MaxObsCameraTests PRIVATE cxx_std_17)
+endif()
