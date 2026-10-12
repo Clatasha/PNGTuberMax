@@ -1,4 +1,4 @@
-PNGTUBER MAX by Clatasha — 0.1.7 DEVELOPMENT PREVIEW
+PNGTUBER MAX by Clatasha — 0.1.8 DEVELOPMENT PREVIEW
 
 Extract the complete folder and open PNGTuberMax.exe. Keep the resources and DLLs together.
 Requires Windows 10/11 x64 with .NET Framework 4.8. No OBS or another PNGTuber app is needed.
@@ -117,3 +117,9 @@ RGB32 and RGB24 output formats are available at 640x480 / 30 FPS.
 The camera migration removes our previous managed loader registration.
 Close and restart all camera receivers after installing this build.
 Compatibility with the user's OBS and Mirillis Action installation requires retesting.
+
+0.1.8 CAMERA CONTROL VISIBILITY
+Start camera is green; Stop camera is red, in both the studio toolbar and Camera preferences.
+The buttons are taller and an OUTPUT ON/OFF label states whether the avatar is being sent.
+When output is off, a short instruction points to the green Start camera button.
+The native camera implementation remains 0.1.7.

@@ -559,7 +559,7 @@ public:
 			ImGui::SetWindowSize({ 400 * appConfig->scalingFactor,-1 });
 
             ImGui::SeparatorText("PNGTuber Max by Clatasha");
-            ImGui::TextWrapped("PNGTuber Max 0.1.7 preview. Plush PNG mode is available. Virtual camera compatibility remains under test; face tracking is planned.");
+            ImGui::TextWrapped("PNGTuber Max 0.1.8 preview. Plush PNG mode is available. Virtual camera compatibility remains under test; face tracking is planned.");
             if (MaxUi::Button("PNGTuber Max releases", { -1, UIUnit }))
                 OsOpenInShell("https://github.com/Clatasha/PNGTuberMax/releases");
             ToolTip("Opens PNGTuber Max releases on GitHub.", &appConfig->_hoverTimer);
@@ -615,7 +615,7 @@ public:
             ImGui::TextWrapped("RahiTuber (c) 2018-%d Rahisaurus (Tom Rule)", year);
 			ImGui::PopStyleColor(2);
 
-			ImGui::TextWrapped("PNGTuber Max 0.1.7 preview / RahiTuber engine %.3f", appConfig->_versionNumber);
+			ImGui::TextWrapped("PNGTuber Max 0.1.8 preview / RahiTuber engine %.3f", appConfig->_versionNumber);
 
 			ImGui::Separator();
 			if (MaxUi::Button("OK", { -1,20 }))
@@ -634,10 +634,10 @@ public:
         if(uiConfig->_advMenuPending_windowTab)preferenceSection=1;if(uiConfig->_advMenuPending_appearanceTab)preferenceSection=2;if(uiConfig->_advMenuPending_behaviourTab)preferenceSection=3;if(uiConfig->_advMenuPending_shortcutsTab)preferenceSection=4;if(uiConfig->_advMenuPending_integrationTab)preferenceSection=5;if(uiConfig->_advMenuPending_phonemesTab)preferenceSection=6;if(uiConfig->_advMenuPending_trackingTab)preferenceSection=7;
         ImGui::SetNextItemWidth(-1);ImGui::Combo("##preferenceSection",&preferenceSection,sections,8);ImGui::Separator();
         if(preferenceSection==0){
-            ImGui::TextWrapped("PNGTuber Max Camera");ImGui::TextWrapped("%s",camera.Status().c_str());
+            ImGui::TextWrapped("PNGTuber Max Camera");MaxUi::CameraState(camera.On());ImGui::TextWrapped("%s",camera.Status().c_str());
             if(MaxUi::Button("Install / repair camera",{-1,0}))camera.Setup(appConfig->_appLocation);
             if(MaxUi::Button("Check camera delivery",{-1,0}))camera.Check(appConfig->_appLocation);
-            if(MaxUi::Button(camera.On()?"Stop camera output":"Start camera output",{-1,0})){if(camera.On())camera.Stop();else camera.Start();}
+            if(MaxUi::CameraButton(camera.On(),{-1,ImGui::GetFrameHeight()*1.35f})){if(camera.On())camera.Stop();else camera.Start();}
             ImGui::TextWrapped("After setup, restart your receiving app and choose PNGTuber Max Camera. Starting output does not open another preview window.");
             ImGui::TextWrapped("640 x 480 / 30 FPS. Setup asks Windows for administrator access once; normal use does not.");
         }else if(ImGui::BeginTabBar("##DockPreferenceContent")){
@@ -1811,8 +1811,8 @@ public:
         ImGui::Begin("Studio##leftDock",nullptr,ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_AlwaysVerticalScrollbar);
         MaxUi::BrandHeader();float unit=ImGui::GetFrameHeight();
         float cameraButtonWidth=(ImGui::GetContentRegionAvail().x-style.ItemSpacing.x)*.5f;
-        if(MaxUi::Button(camera.On()?"Stop camera":"Start camera",{cameraButtonWidth,0})){if(camera.On())camera.Stop();else camera.Start();}ImGui::SameLine();if(MaxUi::Button("Setup",{cameraButtonWidth,0})){preferenceSection=0;camera.Setup(appConfig->_appLocation);}menuHelp(style);
-        ImGui::TextWrapped("%s",camera.On()?"Camera sending":"Camera off / see Camera preferences");
+        if(MaxUi::CameraButton(camera.On(),{cameraButtonWidth,ImGui::GetFrameHeight()*1.35f})){if(camera.On())camera.Stop();else camera.Start();}ImGui::SameLine();if(MaxUi::Button("Setup",{cameraButtonWidth,ImGui::GetFrameHeight()*1.35f})){preferenceSection=0;camera.Setup(appConfig->_appLocation);}menuHelp(style);
+        MaxUi::CameraState(camera.On());
         float reserve=(uiConfig->_audioExpanded?9.7f:6.3f)*unit+(audioConfig->_devIdx==paNoDevice?3.5f*unit:0.f);
         float managerHeight=std::max(80.f,ImGui::GetContentRegionAvail().y-reserve);layerMan->DrawGUI(style,managerHeight);
         ImGui::Separator();menuAudio(style);ImGui::Separator();menuPresets(style);

@@ -22,6 +22,19 @@ inline bool Button(const char* label,const ImVec2& size=ImVec2(0,0)) {
     auto* draw=ImGui::GetWindowDrawList();ImDrawListSplitter channels;channels.Split(draw,2);channels.SetCurrentChannel(draw,1);
     bool hit=ImGui::Button(label,size);FinishRaised(draw,channels);return hit;
 }
+// Camera action colours remain consistent in the toolbar and preferences.
+inline bool CameraButton(bool running,const ImVec2& size=ImVec2(0,0)) {
+    ImGui::PushStyleColor(ImGuiCol_Button,running?ImVec4(.58f,.12f,.15f,1):ImVec4(.04f,.36f,.18f,1));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered,running?ImVec4(.72f,.16f,.20f,1):ImVec4(.05f,.48f,.24f,1));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive,running?ImVec4(.46f,.09f,.12f,1):ImVec4(.03f,.29f,.15f,1));
+    ImGui::PushStyleColor(ImGuiCol_Text,ImVec4(.96f,1.f,.98f,1));
+    bool hit=Button(running?"Stop camera":"Start camera",size);
+    ImGui::PopStyleColor(4);return hit;
+}
+inline void CameraState(bool running) {
+    ImGui::TextColored(running?ImVec4(.37f,.94f,.62f,1):ImVec4(.95f,.78f,.42f,1),"%s",running?"CAMERA OUTPUT ON":"CAMERA OUTPUT OFF");
+    if(!running)ImGui::TextWrapped("Press the green Start camera button to send your avatar.");
+}
 template<typename... Args> inline bool IconButton(Args&&... args) {
     auto* draw=ImGui::GetWindowDrawList();ImDrawListSplitter channels;channels.Split(draw,2);channels.SetCurrentChannel(draw,1);
     bool hit=ImGui::ImageButton(std::forward<Args>(args)...);FinishRaised(draw,channels);return hit;

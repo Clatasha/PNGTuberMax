@@ -78,3 +78,7 @@ Camera DLLs install into separate directories per build, allowing updates while 
 ### 0.1.7 native camera replacement
 
 The camera DLL now uses Microsoft's MIT-licensed DirectShow base classes at commit 434f6002bdf9cf9829406c3ff2b33387982d6168. The native source includes RGB32/RGB24 and separate 32-bit/64-bit DLLs. Install / repair migrates the existing device registration from the CLR loader to the native DLL. The standalone checker uses .NET but does not reference or load a managed camera implementation. Real OBS and Mirillis Action compatibility remains subject to user verification.
+
+### 0.1.8 visible camera controls
+
+The user confirmed camera output worked after pressing Start camera. Both camera controls now use green for Start and red for Stop, with larger buttons and explicit output status. Output-off guidance points to the green control. The native backend remains 0.1.7.
