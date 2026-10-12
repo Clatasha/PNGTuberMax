@@ -1,4 +1,4 @@
-PNGTUBER MAX by Clatasha — 0.1.6 DEVELOPMENT PREVIEW
+PNGTUBER MAX by Clatasha — 0.1.7 DEVELOPMENT PREVIEW
 
 Extract the complete folder and open PNGTuberMax.exe. Keep the resources and DLLs together.
 Requires Windows 10/11 x64 with .NET Framework 4.8. No OBS or another PNGTuber app is needed.
@@ -108,3 +108,12 @@ Internal delivery success does not prove OBS or Mirillis Action compatibility.
 Native tests now bind through the device moniker, following the OBS discovery path.
 Setup retires the obsolete Clatasha Camera (Preview) device entry from our first prototype.
 It keeps that prototype's files and COM class; no character assets are removed.
+
+0.1.7 NATIVE CAMERA BACKEND
+The receiving app now loads a native C++ DirectShow source built on Microsoft base classes.
+Both 32-bit and 64-bit DLLs are included; camera registration no longer uses RegAsm/CLR.
+The standalone diagnostic still uses .NET, outside the receiving app.
+RGB32 and RGB24 output formats are available at 640x480 / 30 FPS.
+The camera migration removes our previous managed loader registration.
+Close and restart all camera receivers after installing this build.
+Compatibility with the user's OBS and Mirillis Action installation requires retesting.

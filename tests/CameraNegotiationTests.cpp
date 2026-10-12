@@ -22,7 +22,7 @@ int main(){check(SUCCEEDED(CoInitializeEx(nullptr,COINIT_MULTITHREADED)),"COM in
  PIN_INFO info={};check(SUCCEEDED(pin->QueryPinInfo(&info))&&info.dir==PINDIR_OUTPUT&&info.pFilter,"pin info ABI");info.pFilter->Release();
  MaxKsProperty* property=nullptr;check(SUCCEEDED(pin->QueryInterface(__uuidof(MaxKsProperty),(void**)&property)),"capture pin property interface");GUID set,category,expected;CLSIDFromString(L"{9b00f101-1567-11d1-b3f1-00aa003761c5}",&set);CLSIDFromString(L"{fb6c4281-0353-11d1-905f-0000c0cc16ba}",&expected);DWORD support=0,returned=0;
  check(SUCCEEDED(property->QuerySupported(set,0,&support))&&(support&1),"native category query support");check(SUCCEEDED(property->Get(set,0,nullptr,0,&category,sizeof(category),&returned))&&returned==16&&category==expected,"native capture category");property->Release();
- IAMStreamConfig* cfg=nullptr;check(SUCCEEDED(pin->QueryInterface(IID_IAMStreamConfig,(void**)&cfg)),"stream configuration");int count=0,size=0;check(SUCCEEDED(cfg->GetNumberOfCapabilities(&count,&size))&&count==1&&size==sizeof(VIDEO_STREAM_CONFIG_CAPS),"capability struct size");
+ IAMStreamConfig* cfg=nullptr;check(SUCCEEDED(pin->QueryInterface(IID_IAMStreamConfig,(void**)&cfg)),"stream configuration");int count=0,size=0;check(SUCCEEDED(cfg->GetNumberOfCapabilities(&count,&size))&&count>=1&&size==sizeof(VIDEO_STREAM_CONFIG_CAPS),"capability struct size");
  VIDEO_STREAM_CONFIG_CAPS caps={};AM_MEDIA_TYPE* mt=nullptr;
  check(cfg->GetStreamCaps(0,nullptr,(BYTE*)&caps)==E_POINTER,"null type output");
  check(cfg->GetStreamCaps(0,&mt,nullptr)==E_POINTER&&mt==nullptr,"null capability output");
@@ -30,7 +30,7 @@ int main(){check(SUCCEEDED(CoInitializeEx(nullptr,COINIT_MULTITHREADED)),"COM in
  auto video=(VIDEOINFOHEADER*)mt->pbFormat;check(video->bmiHeader.biWidth==640&&video->bmiHeader.biHeight==480&&video->bmiHeader.biBitCount==32,"RGB32 format ABI");check(caps.InputSize.cx==640&&caps.MinFrameInterval==333333,"capability fields");
  check(SUCCEEDED(cfg->SetFormat(mt)),"set advertised format");freeType(mt);mt=nullptr;
  check(SUCCEEDED(cfg->SetFormat(nullptr)),"restore default format");check(cfg->GetFormat(nullptr)==E_POINTER,"null format output");check(SUCCEEDED(cfg->GetFormat(&mt))&&mt,"native format allocation");freeType(mt);mt=nullptr;
- check(FAILED(cfg->GetStreamCaps(1,&mt,(BYTE*)&caps))&&mt==nullptr,"invalid capability index");
+ check(FAILED(cfg->GetStreamCaps(count,&mt,(BYTE*)&caps))&&mt==nullptr,"invalid capability index");
  IEnumMediaTypes* types=nullptr;check(SUCCEEDED(pin->EnumMediaTypes(&types)),"enumerate media types");check(types->Next(1,&mt,&fetched)==S_OK&&mt,"native type enumeration");freeType(mt);types->Release();
  check(SUCCEEDED(filter->Pause())&&SUCCEEDED(filter->Stop()),"unconnected state cycle");cfg->Release();
  if(cycle<3){IGraphBuilder* graph=nullptr;IBaseFilter* sink=nullptr;IMediaControl* control=nullptr;
@@ -44,4 +44,4 @@ int main(){check(SUCCEEDED(CoInitializeEx(nullptr,COINIT_MULTITHREADED)),"COM in
  check(SUCCEEDED(graph->Disconnect(pin))&&SUCCEEDED(graph->Disconnect(sinkPin)),"native disconnect");
  control->Release();sinkPin->Release();graph->RemoveFilter(filter);graph->RemoveFilter(sink);sink->Release();graph->Release();}
  pin->Release();filter->Release();}
- cameraMoniker->Release();CoUninitialize();std::puts("Native recorder negotiation passed (20 device-selection cycles).");return 0;}
+ check(GetModuleHandleW(L"clr.dll")==nullptr,"camera does not load CLR into native receiver");cameraMoniker->Release();CoUninitialize();std::puts("Native recorder negotiation passed (20 device-selection cycles).");return 0;}

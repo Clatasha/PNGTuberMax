@@ -1,0 +1,4 @@
+LIBRARY PNGTuberMax.Camera
+EXPORTS
+ DllGetClassObject PRIVATE
+ DllCanUnloadNow PRIVATE

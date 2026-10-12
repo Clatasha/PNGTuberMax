@@ -9,11 +9,12 @@ Copy-Item $exe.FullName $OutputDir -Force
 Copy-Item (Join-Path $root 'RahiTuber\res') $OutputDir -Recurse -Force
 foreach ($file in @('buildnumber.txt','LICENSE.txt')) { Copy-Item (Join-Path $root $file) $OutputDir -Force }
 Copy-Item "$root\RahiTuber\config.xml" $OutputDir -Force
-& "$root\camera\Build-Camera.ps1" -OutputDir (Join-Path $root $OutputDir)
+& "$root\camera\Build-Camera.ps1" -OutputDir (Join-Path $root $OutputDir) -BuildDir (Join-Path $root $BuildDir)
 foreach ($file in @('Install-Camera.ps1','Uninstall-Camera.ps1')) { Copy-Item "$root\camera\$file" $OutputDir -Force }
 New-Item -ItemType Directory "$OutputDir\notices" -Force | Out-Null
 Copy-Item "$root\camera\third_party\LICENSE.txt" "$OutputDir\notices\DirectShowLib-LGPL-2.1.txt" -Force
 Copy-Item "$root\camera\third_party\DirectShowLib-source.zip" "$OutputDir\notices" -Force
+Copy-Item "$root\camera\native\Microsoft-MIT.txt" "$OutputDir\notices\Microsoft-DirectShow-MIT.txt" -Force
 foreach ($library in @('SFML','imgui','freetype','mongoose','portaudio','tinyxml2','Spout2','Simple-FFT')) {
     $license = Get-ChildItem "$root\Libraries\$library" -File | Where-Object { $_.Name -match '^(LICENSE|COPYING|License)' } | Select-Object -First 1
     if ($license) { Copy-Item $license.FullName "$OutputDir\notices\$library-license.txt" -Force }

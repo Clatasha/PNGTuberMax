@@ -14,6 +14,17 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+      - name: Build native camera x64 and x86
+        shell: powershell
+        run: |
+          cmake -S camera/native -B build/camera-x64 -G "Visual Studio 17 2022" -A x64
+          if ($LASTEXITCODE -ne 0) { throw 'Native x64 configure failed.' }
+          cmake --build build/camera-x64 --config Release --parallel 4
+          if ($LASTEXITCODE -ne 0) { throw 'Native x64 build failed.' }
+          cmake -S camera/native -B build/camera-x86 -G "Visual Studio 17 2022" -A Win32
+          if ($LASTEXITCODE -ne 0) { throw 'Native x86 configure failed.' }
+          cmake --build build/camera-x86 --config Release --parallel 4
+          if ($LASTEXITCODE -ne 0) { throw 'Native x86 build failed.' }
       - name: Configure Windows x64
         run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 "-DCMAKE_POLICY_VERSION_MINIMUM=3.5" -DPNGMAX_TEST_OBS_CAPTURE=ON
       - name: Build app and frame test
@@ -47,7 +58,9 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Camera registration failed.' }
           if (Test-Path -LiteralPath 'Registry::HKEY_CLASSES_ROOT\CLSID\{860BB310-5D01-11D0-BD3B-00A0C911CE86}\Instance\{B9707C62-8759-4988-9885-1239742EF331}') { throw 'Obsolete prototype camera remains listed.' }
           $registration = Get-ItemProperty -LiteralPath 'Registry::HKEY_CLASSES_ROOT\CLSID\{EEBEE603-EC24-4D77-8827-C8F799C81026}\InprocServer32'
-          $installedDll = ([Uri]$registration.CodeBase).LocalPath
+          $nativeKey=[Microsoft.Win32.Registry]::ClassesRoot.OpenSubKey('CLSID\{EEBEE603-EC24-4D77-8827-C8F799C81026}\InprocServer32')
+          $installedDll=$nativeKey.GetValue('');$nativeKey.Dispose()
+          if ($installedDll -match 'mscoree') { throw 'Managed camera loader remains registered.' }
           if ((Get-FileHash $installedDll).Hash -ne (Get-FileHash .\dist\PNGTuberMax\PNGTuberMax.Camera.dll).Hash) { throw 'Installed camera differs from packaged build.' }
           # A stale registered DLL must fail before the managed checker can test its local copy.
           $originalBytes = [IO.File]::ReadAllBytes($installedDll)
@@ -58,6 +71,8 @@ jobs:
           Write-Output 'PASS: locked legacy DLL does not block update; checker rejects stale installed builds.'
           & .\build\Release\MaxCameraNegotiationTests.exe
           if ($LASTEXITCODE -ne 0) { throw 'Native recorder negotiation failed.' }
+          & .\build\camera-x86\Release\MaxNativeNegotiationTests.exe
+          if ($LASTEXITCODE -ne 0) { throw 'Native 32-bit recorder negotiation failed.' }
           $test = Start-Process .\dist\PNGTuberMax\CameraDiagnostic.exe -ArgumentList '--ci --simulate' -Wait -PassThru
           Get-Content "$env:LOCALAPPDATA\Clatasha\PNGTuberMax\camera-report.txt"
           if (Test-Path "$env:LOCALAPPDATA\Clatasha\PNGTuberMax\camera-stream-log.txt") { Get-Content "$env:LOCALAPPDATA\Clatasha\PNGTuberMax\camera-stream-log.txt" }

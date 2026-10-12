@@ -74,3 +74,7 @@ Camera capability outputs now use caller-owned native buffers. Windows tests pro
 ### 0.1.6 camera installation and discovery checks
 
 Camera DLLs install into separate directories per build, allowing updates while older DLLs are locked. Receiving apps still need a full restart to load the new registration. The checker rejects installed DLLs that do not match the package, and describes frame delivery as an internal test. Native tests now instantiate the camera through its device moniker, covering a discovery step used by OBS. User testing in OBS and Mirillis Action remains necessary.
+
+### 0.1.7 native camera replacement
+
+The camera DLL now uses Microsoft's MIT-licensed DirectShow base classes at commit 434f6002bdf9cf9829406c3ff2b33387982d6168. The native source includes RGB32/RGB24 and separate 32-bit/64-bit DLLs. Install / repair migrates the existing device registration from the CLR loader to the native DLL. The standalone checker uses .NET but does not reference or load a managed camera implementation. Real OBS and Mirillis Action compatibility remains subject to user verification.
