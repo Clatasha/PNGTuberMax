@@ -38,7 +38,7 @@ Source: https://github.com/Clatasha/PNGTuberMax
 Original engine: https://github.com/ThomasR95/rahituber
 License notices are included in LICENSE.txt and notices/. Inter is licensed under SIL OFL.
 
-0.1.5 CHANGES
+0.1.2 CHANGES
 The editor is split into left studio/layers, middle avatar preview, and right Preferences.
 Preferences remain visible; choose a settings section using the selector at the top.
 Imports/open/save use Windows file dialogs. Ctrl+Open merges into the current project.
@@ -53,7 +53,7 @@ Use Check camera delivery to test registration and real DirectShow frame deliver
 If setup or checking fails, send the error text from the panel or camera-report.txt /
 camera-install-log.txt in %LOCALAPPDATA%\Clatasha\PNGTuberMax.
 
-0.1.5 AUDIO AND PLUSH PNG MODE
+0.1.3 AUDIO AND PLUSH PNG MODE
 Missing audio never opens a modal or prevents editing. Choose an input, refresh, or use the
 inline Use system default button. Failed devices show an error beside the input controls.
 Device selection uses actual PortAudio IDs, and refresh closes the old stream safely.
@@ -69,7 +69,7 @@ This first version wraps the body surfaces. Eye/accessory layers retain existing
 curved surface attachment and face tracking remain planned. Fine contours and strong side
 turns need testing with your mascot artwork. Rendering uses a bounded sprite tessellation.
 
-0.1.5 ROTATION, EDITOR AND SAVE FIXES
+0.1.4 ROTATION, EDITOR AND SAVE FIXES
 Alt + left drag inside the avatar preview turns the most recently selected plush body.
 Click the body's layer header to select it; if none is selected, the first visible plush body
 is used. Release Alt/mouse or leave app focus to end the drag. Manual turning switches off
@@ -93,3 +93,9 @@ created, and the plush preview bypasses the extra FXAA blur pass. Premultiplied 
 composited once in the plush preview, preserving translucent outline colours.
 The standard sprite renderer retains its existing appearance preferences. Tests cover detailed
 striped PNGs at 2 and 5 degrees, neutral-view detail/alpha, side seams and XML save/overwrite.
+
+0.1.5 CAMERA NEGOTIATION
+Native format queries now allocate caller-owned COM buffers and validate output pointers.
+Windows tests cover device selection and receiver stop/restart, in addition to frame delivery.
+Close all receiving apps and click Install / repair camera once to replace the old DLL.
+The exact recording app reported to crash has not yet been identified or verified.

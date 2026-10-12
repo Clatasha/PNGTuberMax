@@ -12,7 +12,7 @@ This repository contains the blue-interface and virtual-camera development previ
 
 The inherited engine includes PNG layers, folders, talking/blinking/screaming states, sprite sheets, voice-driven mouth shapes, inherited motion and physics, masks/blend modes, and shortcuts. User-facing titles and Help branding now identify PNGTuber Max by Clatasha. The Max design uses raised blue controls, soft shadows, edge highlights, Inter typography, a branded header and 30 original action icons. Upstream update checks are disabled; release links point to this repository.
 
-The Windows virtual camera publisher and one-time hidden installer are now integrated. They send the clean avatar scene at 640x480 / 30 FPS, without the editor interface. The DirectShow camera backend remains experimental. Webcam face tracking, plush-style front/back PNG mode, and live eye/mouth cutouts are **planned additions**.
+The Windows virtual camera publisher and one-time hidden installer are now integrated. They send the clean avatar scene at 640x480 / 30 FPS, without the editor interface. The DirectShow camera backend remains experimental. Plush-style front/back PNG mode is available. Webcam face tracking and live eye/mouth cutouts are planned additions.
 
 ## Build on Windows
 
@@ -68,3 +68,5 @@ Transform fields use the available width rather than a fixed large spacing deduc
 Plush mode now samples the visible front/back surface per pixel, caches the result, removes
 source mipmap averaging and bypasses the preview FXAA pass. Its premultiplied colours are
 composited once. Sharpness tests cover detailed PNGs at small turn angles.
+
+Camera capability outputs now use caller-owned native buffers. Windows tests probe the unmanaged format API, invalid arguments, twenty device-selection cycles, and repeated receiver start/stop connections. Compatibility with the reporting user’s recorder still needs verification. Close receiving apps and use Install / repair camera once when replacing an older preview.

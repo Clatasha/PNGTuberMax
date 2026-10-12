@@ -3,6 +3,11 @@
 #include <dshow.h>
 #include <cstdio>
 #include <cstdlib>
+struct __declspec(uuid("31efac30-515c-11d0-a9aa-00aa0061be93")) MaxKsProperty: IUnknown {
+ virtual HRESULT STDMETHODCALLTYPE Set(REFGUID,DWORD,void*,DWORD,void*,DWORD)=0;
+ virtual HRESULT STDMETHODCALLTYPE Get(REFGUID,DWORD,void*,DWORD,void*,DWORD,DWORD*)=0;
+ virtual HRESULT STDMETHODCALLTYPE QuerySupported(REFGUID,DWORD,DWORD*)=0;
+};
 static void check(bool ok,const char* what){if(!ok){std::fprintf(stderr,"FAIL: %s\n",what);std::exit(1);}}
 static void freeType(AM_MEDIA_TYPE* mt){if(!mt)return;CoTaskMemFree(mt->pbFormat);if(mt->pUnk)mt->pUnk->Release();CoTaskMemFree(mt);}
 int main(){check(SUCCEEDED(CoInitializeEx(nullptr,COINIT_MULTITHREADED)),"COM initialization");
@@ -10,6 +15,8 @@ int main(){check(SUCCEEDED(CoInitializeEx(nullptr,COINIT_MULTITHREADED)),"COM in
  for(int cycle=0;cycle<20;++cycle){IBaseFilter* filter=nullptr;check(SUCCEEDED(CoCreateInstance(id,nullptr,CLSCTX_INPROC_SERVER,IID_IBaseFilter,(void**)&filter)),"create installed camera");
  IEnumPins* pins=nullptr;check(SUCCEEDED(filter->EnumPins(&pins)),"enumerate pins");IPin* pin=nullptr;ULONG fetched=0;check(pins->Next(1,&pin,&fetched)==S_OK&&fetched==1,"native pin enumeration");pins->Release();
  PIN_INFO info={};check(SUCCEEDED(pin->QueryPinInfo(&info))&&info.dir==PINDIR_OUTPUT&&info.pFilter,"pin info ABI");info.pFilter->Release();
+ MaxKsProperty* property=nullptr;check(SUCCEEDED(pin->QueryInterface(__uuidof(MaxKsProperty),(void**)&property)),"capture pin property interface");GUID set,category,expected;CLSIDFromString(L"{9b00f101-1567-11d1-b3f1-00aa003761c5}",&set);CLSIDFromString(L"{fb6c4281-0353-11d1-905f-0000c0cc16ba}",&expected);DWORD support=0,returned=0;
+ check(SUCCEEDED(property->QuerySupported(set,0,&support))&&(support&1),"native category query support");check(SUCCEEDED(property->Get(set,0,nullptr,0,&category,sizeof(category),&returned))&&returned==16&&category==expected,"native capture category");property->Release();
  IAMStreamConfig* cfg=nullptr;check(SUCCEEDED(pin->QueryInterface(IID_IAMStreamConfig,(void**)&cfg)),"stream configuration");int count=0,size=0;check(SUCCEEDED(cfg->GetNumberOfCapabilities(&count,&size))&&count==1&&size==sizeof(VIDEO_STREAM_CONFIG_CAPS),"capability struct size");
  VIDEO_STREAM_CONFIG_CAPS caps={};AM_MEDIA_TYPE* mt=nullptr;
  check(cfg->GetStreamCaps(0,nullptr,(BYTE*)&caps)==E_POINTER,"null type output");
