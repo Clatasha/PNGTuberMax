@@ -642,8 +642,13 @@ public:
             ImGui::TextWrapped("640 x 480 / 30 FPS. Setup asks Windows for administrator access once; normal use does not.");
         }else if(preferenceSection==8){
             auto& tracker=layerMan->_faceTracker;ImGui::TextWrapped("%s",tracker.status.c_str());
-            ImGui::TextWrapped("Choose your physical webcam index (0 is usually the first). Use a different index if Windows lists the virtual camera first.");
-            if(!tracker.Running())ImGui::InputInt("Camera input",&tracker.device);tracker.device=std::clamp(tracker.device,0,15);
+            if(!tracker.devicesScanned)tracker.RefreshDevices();
+            if(!tracker.Running()){
+                std::string selected="Choose webcam";for(auto& entry:tracker.devices)if(entry.first==tracker.device)selected=entry.second;
+                if(ImGui::BeginCombo("Camera input",selected.c_str())){for(auto& entry:tracker.devices)if(ImGui::Selectable(entry.second.c_str(),entry.first==tracker.device))tracker.device=entry.first;ImGui::EndCombo();}
+                if(ImGui::Button("Refresh webcams"))tracker.RefreshDevices();
+                if(tracker.devices.empty())ImGui::TextWrapped("No physical webcam found. Connect a camera, then refresh.");
+            }
             if(MaxUi::Button(tracker.Running()?"Stop webcam":"Start webcam",{-1,0})){if(tracker.Running())tracker.Stop();else tracker.Start(appConfig->_appLocation);}
             if(MaxUi::Button("Calibrate neutral pose",{-1,0})&&tracker.available)tracker.Calibrate();
             ImGui::SliderFloat("Smoothing",&tracker.smoothing,.02f,.6f,"%.2f s");

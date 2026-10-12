@@ -6,10 +6,24 @@
 #include <string>
 #include <cstring>
 #ifdef _WIN32
+#include <winsock2.h>
 #include <windows.h>
+#include <dshow.h>
 #endif
 class MaxFaceTracker {
 public:
+ std::vector<std::pair<int,std::string>> devices;bool devicesScanned=false;
+ void RefreshDevices(){devices.clear();devicesScanned=true;
+#ifdef _WIN32
+ HRESULT initialized=CoInitializeEx(nullptr,COINIT_MULTITHREADED);ICreateDevEnum* enumeration=nullptr;IEnumMoniker* monikers=nullptr;
+ if(SUCCEEDED(CoCreateInstance(CLSID_SystemDeviceEnum,nullptr,CLSCTX_INPROC_SERVER,IID_ICreateDevEnum,reinterpret_cast<void**>(&enumeration)))){
+ if(enumeration->CreateClassEnumerator(CLSID_VideoInputDeviceCategory,&monikers,0)==S_OK){IMoniker* moniker=nullptr;int index=0;while(monikers->Next(1,&moniker,nullptr)==S_OK){IPropertyBag* bag=nullptr;VARIANT name;VariantInit(&name);std::string label="Camera "+std::to_string(index);
+ if(SUCCEEDED(moniker->BindToStorage(nullptr,nullptr,IID_IPropertyBag,reinterpret_cast<void**>(&bag)))){if(SUCCEEDED(bag->Read(L"FriendlyName",&name,nullptr))&&name.vt==VT_BSTR){int size=WideCharToMultiByte(CP_UTF8,0,name.bstrVal,-1,nullptr,0,nullptr,nullptr);if(size>0){label.resize(size);WideCharToMultiByte(CP_UTF8,0,name.bstrVal,-1,label.data(),size,nullptr,nullptr);label.pop_back();}}VariantClear(&name);bag->Release();}
+ if(label.find("PNGTuber Max")==std::string::npos&&label.find("Clatasha Camera")==std::string::npos)devices.emplace_back(index,label);++index;moniker->Release();}monikers->Release();}enumeration->Release();}
+ if(SUCCEEDED(initialized))CoUninitialize();
+ if(!devices.empty()&&std::none_of(devices.begin(),devices.end(),[&](const auto& d){return d.first==device;}))device=devices.front().first;
+#endif
+ }
  MaxRigPose pose;std::array<sf::Texture,3> textures;bool available=false;int device=0;float smoothing=.15f;std::string status="Webcam stopped";
  ~MaxFaceTracker(){Stop();}
  bool Running()const{return running;}

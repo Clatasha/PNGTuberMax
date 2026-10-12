@@ -106,7 +106,7 @@ target_link_libraries(RahiTuber PRIVATE ${OPENGL_LIBRARY}
 
 if(WIN32)
     target_link_libraries(RahiTuber PRIVATE Spout_static)
-    target_link_libraries(RahiTuber PRIVATE Shcore Xinput hid)
+    target_link_libraries(RahiTuber PRIVATE Shcore Xinput hid ole32 oleaut32 strmiids)
 	
 
 endif()
