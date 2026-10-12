@@ -16,10 +16,11 @@ public:
  std::vector<std::pair<int,std::string>> devices;bool devicesScanned=false;
  void RefreshDevices(){devices.clear();devicesScanned=true;
 #ifdef _WIN32
+ CLSID systemDevices{},videoCategory{};CLSIDFromString(L"{62BE5D10-60EB-11D0-BD3B-00A0C911CE86}",&systemDevices);CLSIDFromString(L"{860BB310-5D01-11D0-BD3B-00A0C911CE86}",&videoCategory);
  HRESULT initialized=CoInitializeEx(nullptr,COINIT_MULTITHREADED);ICreateDevEnum* enumeration=nullptr;IEnumMoniker* monikers=nullptr;
- if(SUCCEEDED(CoCreateInstance(CLSID_SystemDeviceEnum,nullptr,CLSCTX_INPROC_SERVER,IID_ICreateDevEnum,reinterpret_cast<void**>(&enumeration)))){
- if(enumeration->CreateClassEnumerator(CLSID_VideoInputDeviceCategory,&monikers,0)==S_OK){IMoniker* moniker=nullptr;int index=0;while(monikers->Next(1,&moniker,nullptr)==S_OK){IPropertyBag* bag=nullptr;VARIANT name;VariantInit(&name);std::string label="Camera "+std::to_string(index);
- if(SUCCEEDED(moniker->BindToStorage(nullptr,nullptr,IID_IPropertyBag,reinterpret_cast<void**>(&bag)))){if(SUCCEEDED(bag->Read(L"FriendlyName",&name,nullptr))&&name.vt==VT_BSTR){int size=WideCharToMultiByte(CP_UTF8,0,name.bstrVal,-1,nullptr,0,nullptr,nullptr);if(size>0){label.resize(size);WideCharToMultiByte(CP_UTF8,0,name.bstrVal,-1,label.data(),size,nullptr,nullptr);label.pop_back();}}VariantClear(&name);bag->Release();}
+ if(SUCCEEDED(CoCreateInstance(systemDevices,nullptr,CLSCTX_INPROC_SERVER,__uuidof(ICreateDevEnum),reinterpret_cast<void**>(&enumeration)))){
+ if(enumeration->CreateClassEnumerator(videoCategory,&monikers,0)==S_OK){IMoniker* moniker=nullptr;int index=0;while(monikers->Next(1,&moniker,nullptr)==S_OK){IPropertyBag* bag=nullptr;VARIANT name;VariantInit(&name);std::string label="Camera "+std::to_string(index);
+ if(SUCCEEDED(moniker->BindToStorage(nullptr,nullptr,__uuidof(IPropertyBag),reinterpret_cast<void**>(&bag)))){if(SUCCEEDED(bag->Read(L"FriendlyName",&name,nullptr))&&name.vt==VT_BSTR){int size=WideCharToMultiByte(CP_UTF8,0,name.bstrVal,-1,nullptr,0,nullptr,nullptr);if(size>0){label.resize(size);WideCharToMultiByte(CP_UTF8,0,name.bstrVal,-1,label.data(),size,nullptr,nullptr);label.pop_back();}}VariantClear(&name);bag->Release();}
  if(label.find("PNGTuber Max")==std::string::npos&&label.find("Clatasha Camera")==std::string::npos)devices.emplace_back(index,label);++index;moniker->Release();}monikers->Release();}enumeration->Release();}
  if(SUCCEEDED(initialized))CoUninitialize();
  if(!devices.empty()&&std::none_of(devices.begin(),devices.end(),[&](const auto& d){return d.first==device;}))device=devices.front().first;
