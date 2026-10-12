@@ -8,6 +8,7 @@
 #include "imgui-SFML.h"
 
 #include "SpriteSheet.h"
+#include "MaxFaceTracker.h"
 
 #include "tinyxml2.h"
 
@@ -288,7 +289,12 @@ public:
 		std::map<SpriteType, SpriteInfo> _sprites;
 
 		SpriteSheet* _activeSprite = nullptr;
-        bool _plushEnabled=false,_plushFollowMouse=false;
+        std::string _rigAttachLayer;
+    std::array<bool,3> _liveFaceEnabled{{false,false,false}};
+    std::array<MaxRigPoint,3> _liveFacePosition{{{.38f,.3f},{.62f,.3f},{.5f,.45f}}};
+    std::array<float,3> _liveFaceWidth{{.18f,.18f,.24f}};
+    bool _rigEnabled=false,_rigEditing=false; std::vector<MaxRigBone> _rigBones; MaxRigPose _rigTestPose; sf::Transform _rigWorld;
+    bool _plushEnabled=false,_plushFollowMouse=false;
         float _plushRoundness=.45f,_plushYaw=0.f,_plushMouseRange=45.f,_plushRenderedYaw=0.f;
         sf::Clock _plushTurnClock;
         void DrawSprites(sf::RenderTarget* target,const sf::RenderStates& states);
@@ -615,6 +621,10 @@ public:
     bool _saveShortcutPending=false,_saveAsShortcutPending=false;
     void RequestSave(bool saveAs=false){_saveShortcutPending=true;_saveAsShortcutPending=saveAs;}
     bool BeginPlushTurn();
+    std::string _rigDragLayer;int _rigDragBone=-1;bool _rigDragEnd=false;
+    bool RigPointer(sf::Vector2f scene,bool begin,bool finish);
+    MaxRigPose _webcamPose;
+    MaxFaceTracker _faceTracker;
     void DragPlushTurn(float delta,float viewportWidth);
     void EndPlushTurn(){_turningPlushLayer.clear();}
 	bool HandleLayerDrag(float mouseX, float mouseY, bool mousePressed);

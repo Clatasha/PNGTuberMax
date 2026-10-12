@@ -111,3 +111,6 @@ if(WIN32 AND PNGMAX_TEST_OBS_CAPTURE)
  target_link_libraries(MaxObsCameraTests PRIVATE libdshowcapture ole32 oleaut32)
  target_compile_features(MaxObsCameraTests PRIVATE cxx_std_17)
 endif()
+
+add_executable(MaxRigTests tests/RigTests.cpp)
+target_compile_features(MaxRigTests PRIVATE cxx_std_17)

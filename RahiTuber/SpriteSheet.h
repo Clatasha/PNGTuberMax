@@ -9,6 +9,7 @@
 #include <thread>
 #include <cstdint>
 #include "MaxPlushMath.h"
+#include "MaxRig.h"
 
 class SpriteSheet
 {
@@ -16,6 +17,9 @@ public:
 
 	void Draw(sf::RenderTarget* target, const sf::RenderStates& states = sf::RenderStates::Default);
 	void Tick();
+    const std::vector<MaxRigBone>* rigBones=nullptr; MaxRigPose rigPose;
+    sf::Transform getTransform() const {return _sprite.getTransform();}
+    void DrawSurface(sf::RenderTarget*,const sf::Sprite&,const sf::RenderStates&);
     void DrawPlush(sf::RenderTarget* target, SpriteSheet& back, float roundness, float yaw, const sf::RenderStates& states);
 
 

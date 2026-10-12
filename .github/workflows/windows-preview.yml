@@ -28,7 +28,7 @@ jobs:
       - name: Configure Windows x64
         run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 "-DCMAKE_POLICY_VERSION_MINIMUM=3.5" -DPNGMAX_TEST_OBS_CAPTURE=ON
       - name: Build app and frame test
-        run: cmake --build build --config Release --target RahiTuber MaxCameraFrameTests MaxWorkspaceTests MaxPlushMathTests MaxPlushRenderTests MaxEditorTests MaxPlushRasterTests MaxCameraNegotiationTests MaxObsCameraTests --parallel 4
+        run: cmake --build build --config Release --target RahiTuber MaxCameraFrameTests MaxWorkspaceTests MaxPlushMathTests MaxPlushRenderTests MaxEditorTests MaxPlushRasterTests MaxCameraNegotiationTests MaxObsCameraTests MaxRigTests --parallel 4
       - name: Test frame contract
         run: |
           .\build\Release\MaxCameraFrameTests.exe
@@ -37,9 +37,15 @@ jobs:
           .\build\Release\MaxPlushRenderTests.exe
           .\build\Release\MaxEditorTests.exe
           .\build\Release\MaxPlushRasterTests.exe
+          .\build\Release\MaxRigTests.exe
       - name: Package preview
         shell: powershell
         run: .\scripts\Package-Windows.ps1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Bundle and test local face tracker
+        run: python scripts/Bundle-Tracker.py
       - name: Test camera installation and real DirectShow delivery
         shell: powershell
         run: |

@@ -630,9 +630,9 @@ public:
         auto layout=Workspace();ImGui::SetNextWindowPos({layout.right.x,layout.right.y});ImGui::SetNextWindowSize({layout.right.w,layout.right.h});
         ImGui::Begin("Preferences##rightDock",nullptr,ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize|ImGuiWindowFlags_NoCollapse|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoFocusOnAppearing);
         uiConfig->_advancedMenuShowing=ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
-        const char* sections[]={"Camera","Window","Appearance","Behaviour","Shortcuts","Integration","Mouth shapes","Tracking"};
+        const char* sections[]={"Camera","Window","Appearance","Behaviour","Shortcuts","Integration","Mouth shapes","Tracking","Webcam rig"};
         if(uiConfig->_advMenuPending_windowTab)preferenceSection=1;if(uiConfig->_advMenuPending_appearanceTab)preferenceSection=2;if(uiConfig->_advMenuPending_behaviourTab)preferenceSection=3;if(uiConfig->_advMenuPending_shortcutsTab)preferenceSection=4;if(uiConfig->_advMenuPending_integrationTab)preferenceSection=5;if(uiConfig->_advMenuPending_phonemesTab)preferenceSection=6;if(uiConfig->_advMenuPending_trackingTab)preferenceSection=7;
-        ImGui::SetNextItemWidth(-1);ImGui::Combo("##preferenceSection",&preferenceSection,sections,8);ImGui::Separator();
+        ImGui::SetNextItemWidth(-1);ImGui::Combo("##preferenceSection",&preferenceSection,sections,9);ImGui::Separator();
         if(preferenceSection==0){
             ImGui::TextWrapped("PNGTuber Max Camera");MaxUi::CameraState(camera.On());ImGui::TextWrapped("%s",camera.Status().c_str());
             if(MaxUi::Button("Install / repair camera",{-1,0}))camera.Setup(appConfig->_appLocation);
@@ -640,6 +640,14 @@ public:
             if(MaxUi::CameraButton(camera.On(),{-1,ImGui::GetFrameHeight()*1.35f})){if(camera.On())camera.Stop();else camera.Start();}
             ImGui::TextWrapped("After setup, restart your receiving app and choose PNGTuber Max Camera. Starting output does not open another preview window.");
             ImGui::TextWrapped("640 x 480 / 30 FPS. Setup asks Windows for administrator access once; normal use does not.");
+        }else if(preferenceSection==8){
+            auto& tracker=layerMan->_faceTracker;ImGui::TextWrapped("%s",tracker.status.c_str());
+            ImGui::TextWrapped("Choose your physical webcam index (0 is usually the first). Use a different index if Windows lists the virtual camera first.");
+            if(!tracker.Running())ImGui::InputInt("Camera input",&tracker.device);tracker.device=std::clamp(tracker.device,0,15);
+            if(MaxUi::Button(tracker.Running()?"Stop webcam":"Start webcam",{-1,0})){if(tracker.Running())tracker.Stop();else tracker.Start(appConfig->_appLocation);}
+            if(MaxUi::Button("Calibrate neutral pose",{-1,0})&&tracker.available)tracker.Calibrate();
+            ImGui::SliderFloat("Smoothing",&tracker.smoothing,.02f,.6f,"%.2f s");
+            ImGui::TextWrapped("Look straight ahead and calibrate. Tracking stays on this computer. If your face is lost, the rig eases back to neutral. Enable PNG bone rig and Live facial layers on your character layer.");
         }else if(ImGui::BeginTabBar("##DockPreferenceContent")){
             bool rowTop=preferenceSection>=5;float unit=ImGui::GetFrameHeight();ImGui::PushStyleVar(ImGuiStyleVar_CellPadding,{2,2});
             switch(preferenceSection){case 1:menuAdvancedWindowTab(rowTop);break;case 2:menuAdvancedAppearanceTab(rowTop,unit);break;case 3:menuAdvancedBehaviourTab(rowTop);break;case 4:menuAdvancedShortcutsTab(rowTop,style);break;case 5:menuAdvancedIntegrationTab(rowTop,unit);break;case 6:menuAdvancedPhonemesTab(rowTop,style);break;case 7:menuAdvancedTrackingTab(rowTop,style);break;}
@@ -1827,7 +1835,7 @@ public:
 
 	void render()
 	{
-		camera.Poll();
+		camera.Poll();layerMan->_faceTracker.Poll();layerMan->_webcamPose=layerMan->_faceTracker.pose;
         auto dt = appConfig->_timer.restart();
 		appConfig->_fps = (1.0f / dt.asSeconds());
 
@@ -2463,6 +2471,13 @@ public:
 				appConfig->_window.requestFocus();
 			}
 
+            if(uiConfig->_menuShowing&&(evt.type==sf::Event::MouseButtonPressed||evt.type==sf::Event::MouseMoved||evt.type==sf::Event::MouseButtonReleased||evt.type==sf::Event::LostFocus)){
+                bool begin=evt.type==sf::Event::MouseButtonPressed&&evt.mouseButton.button==sf::Mouse::Left;
+                bool end=evt.type==sf::Event::LostFocus||(evt.type==sf::Event::MouseButtonReleased&&evt.mouseButton.button==sf::Mouse::Left);
+                auto fit=Workspace().fit;auto mouse=sf::Mouse::getPosition(appConfig->_window);bool inside=mouse.x>=fit.x&&mouse.x<fit.x+fit.w&&mouse.y>=fit.y&&mouse.y<fit.y+fit.h;
+                sf::Vector2f point{(mouse.x-fit.x)/fit.w*appConfig->_scrW,(mouse.y-fit.y)/fit.h*appConfig->_scrH};
+                if((end||!layerMan->_rigDragLayer.empty()||(begin&&inside&&!ImGui::IsPopupOpen("",ImGuiPopupFlags_AnyPopupId|ImGuiPopupFlags_AnyPopupLevel)))&&layerMan->RigPointer(point,begin,end)){ImGui::SFML::ProcessEvent(appConfig->_window,evt);continue;}
+            }
             bool alt=sf::Keyboard::isKeyPressed(sf::Keyboard::LAlt)||sf::Keyboard::isKeyPressed(sf::Keyboard::RAlt);
             if(evt.type==sf::Event::KeyPressed&&evt.key.code==sf::Keyboard::S&&evt.key.control&&!layerMan->PendingHotkey()){layerMan->RequestSave(evt.key.shift);ImGui::SFML::ProcessEvent(appConfig->_window,evt);continue;}
             if(evt.type==sf::Event::MouseButtonPressed&&evt.mouseButton.button==sf::Mouse::Left&&alt&&!layerMan->PendingHotkey()&&!ImGui::IsPopupOpen("",ImGuiPopupFlags_AnyPopupId|ImGuiPopupFlags_AnyPopupLevel)){

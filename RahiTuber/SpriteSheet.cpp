@@ -48,7 +48,21 @@ bool SpriteSheet::PrepareDraw(bool forceVisible)
 	}
     return false;
 }
-void SpriteSheet::Draw(sf::RenderTarget* target,const sf::RenderStates& states){if(PrepareDraw())target->draw(_sprite,states);}
+void SpriteSheet::Draw(sf::RenderTarget* target,const sf::RenderStates& states){if(PrepareDraw())DrawSurface(target,_sprite,states);}
+void SpriteSheet::DrawSurface(sf::RenderTarget* target,const sf::Sprite& sprite,const sf::RenderStates& states){
+ if(!rigBones||rigBones->empty()){target->draw(sprite,states);return;}
+ sf::RenderStates meshState=states; meshState.transform*=sprite.getTransform();meshState.texture=sprite.getTexture();
+ auto rect=sprite.getTextureRect();const int grid=24;sf::VertexArray mesh(sf::Triangles,grid*grid*6);
+ // Flat sprites already carry the layer transform; their mesh coordinates must remain local.
+ if(&sprite==&_sprite){meshState=states;meshState.transform*=_sprite.getTransform();meshState.texture=_sprite.getTexture();}
+ for(int y=0;y<grid;++y)for(int x=0;x<grid;++x){auto make=[&](int a,int b){float u=float(a)/grid,v=float(b)/grid;
+ auto raw=(&sprite==&_sprite)?sf::Vector2f(u*rect.width,v*rect.height):sprite.getTransform().transformPoint(u*rect.width,v*rect.height);
+ auto p=MaxRigWarp({raw.x/std::max(1.f,_spriteSize.x),raw.y/std::max(1.f,_spriteSize.y)},*rigBones,rigPose);
+ auto q=sf::Vector2f(p.x*_spriteSize.x,p.y*_spriteSize.y);if(&sprite!=&_sprite)q=sprite.getTransform().getInverse().transformPoint(q);
+ return sf::Vertex(q,sprite.getColor(),{rect.left+u*rect.width,rect.top+v*rect.height});};
+ int i=(y*grid+x)*6;mesh[i]=make(x,y);mesh[i+1]=make(x+1,y);mesh[i+2]=make(x+1,y+1);mesh[i+3]=mesh[i];mesh[i+4]=mesh[i+2];mesh[i+5]=make(x,y+1);}
+ target->draw(mesh,meshState);
+}
 const std::vector<MaxPlushSpan>& SpriteSheet::PlushContour(){
  auto rect=_sprite.getTextureRect();auto handle=_tex?_tex->getNativeHandle():0;
  if(handle!=_plushTextureHandle){_plushImage=_tex->copyToImage();_plushTextureHandle=handle;_plushRows.clear();}
@@ -56,7 +70,7 @@ const std::vector<MaxPlushSpan>& SpriteSheet::PlushContour(){
  return _plushRows;
 }
 void SpriteSheet::DrawPlush(sf::RenderTarget* target,SpriteSheet& back,float roundness,float yaw,const sf::RenderStates& states){
- if(!PrepareDraw())return;if(!back.PrepareDraw(true)){target->draw(_sprite,states);return;}
+ if(!PrepareDraw())return;if(!back.PrepareDraw(true)){DrawSurface(target,_sprite,states);return;}
  const auto& contour=PlushContour();const auto& rear=back.PlushContour();auto rect=_sprite.getTextureRect(),rearRect=back._sprite.getTextureRect();
  sf::RenderStates face=states;face.transform*=_sprite.getTransform();float planeWidth=rect.width*std::max(1.f,roundness);
  auto origin=face.transform.transformPoint(0,0),x=face.transform.transformPoint(1,0)-origin,y=face.transform.transformPoint(0,1)-origin;
@@ -67,12 +81,12 @@ void SpriteSheet::DrawPlush(sf::RenderTarget* target,SpriteSheet& back,float rou
   auto fs=_plushImage.getSize(),bs=back._plushImage.getSize();
   MaxPlushPixels front{_plushImage.getPixelsPtr(),int(fs.x),int(fs.y),rect.left,rect.top,rect.width,rect.height,&contour};
   MaxPlushPixels rearImage{back._plushImage.getPixelsPtr(),int(bs.x),int(bs.y),rearRect.left,rearRect.top,rearRect.width,rearRect.height,&rear};
-  auto pixels=MaxPlushRaster(front,rearImage,roundness,yaw,width,height);if(pixels.empty()){target->draw(_sprite,states);return;}
+  auto pixels=MaxPlushRaster(front,rearImage,roundness,yaw,width,height);if(pixels.empty()){DrawSurface(target,_sprite,states);return;}
   sf::Image projected;projected.create(width,height,pixels.data());
-  if(_projectedTexture.getSize()!=sf::Vector2u(width,height)){if(!_projectedTexture.loadFromImage(projected)){target->draw(_sprite,states);return;}}else _projectedTexture.update(projected);
+  if(_projectedTexture.getSize()!=sf::Vector2u(width,height)){if(!_projectedTexture.loadFromImage(projected)){DrawSurface(target,_sprite,states);return;}}else _projectedTexture.update(projected);
   _projectedTexture.setSmooth(_texSmooth);_projectedWidth=width;_projectedHeight=height;_projectedYaw=yaw;_projectedRoundness=roundness;_projectedFrontRevision=_plushRevision;_projectedBackRevision=back._plushRevision;
  }
- sf::Sprite projected(_projectedTexture);projected.setPosition((rect.width-planeWidth)*.5f,0);projected.setScale(planeWidth/width,float(rect.height)/height);projected.setColor(_sprite.getColor());target->draw(projected,face);
+ sf::Sprite projected(_projectedTexture);projected.setPosition((rect.width-planeWidth)*.5f,0);projected.setScale(planeWidth/width,float(rect.height)/height);projected.setColor(_sprite.getColor());DrawSurface(target,projected,face);
 }
 
 void SpriteSheet::Tick()
