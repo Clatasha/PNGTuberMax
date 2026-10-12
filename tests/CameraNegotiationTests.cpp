@@ -30,7 +30,8 @@ int main(){check(SUCCEEDED(CoInitializeEx(nullptr,COINIT_MULTITHREADED)),"COM in
  check(SUCCEEDED(filter->Pause())&&SUCCEEDED(filter->Stop()),"unconnected state cycle");cfg->Release();
  if(cycle<3){IGraphBuilder* graph=nullptr;IBaseFilter* sink=nullptr;IMediaControl* control=nullptr;
  check(SUCCEEDED(CoCreateInstance(CLSID_FilterGraph,nullptr,CLSCTX_INPROC_SERVER,IID_IGraphBuilder,(void**)&graph)),"native graph");
- check(SUCCEEDED(CoCreateInstance(CLSID_NullRenderer,nullptr,CLSCTX_INPROC_SERVER,IID_IBaseFilter,(void**)&sink)),"null receiver");
+ CLSID nullRenderer;CLSIDFromString(L"{C1F400A4-3F08-11D3-9F0B-006008039E37}",&nullRenderer);
+ check(SUCCEEDED(CoCreateInstance(nullRenderer,nullptr,CLSCTX_INPROC_SERVER,IID_IBaseFilter,(void**)&sink)),"null receiver");
  check(SUCCEEDED(graph->AddFilter(filter,L"Max Camera"))&&SUCCEEDED(graph->AddFilter(sink,L"Receiver")),"add native filters");
  IEnumPins* sinkPins=nullptr;IPin* sinkPin=nullptr;sink->EnumPins(&sinkPins);check(sinkPins->Next(1,&sinkPin,nullptr)==S_OK,"receiver pin");sinkPins->Release();
  check(SUCCEEDED(graph->ConnectDirect(pin,sinkPin,nullptr)),"native stream connection");graph->QueryInterface(IID_IMediaControl,(void**)&control);
