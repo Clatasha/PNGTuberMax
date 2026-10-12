@@ -39,6 +39,10 @@ inline void MaxFaceDraw(sf::RenderTarget& target,const sf::Texture& texture,cons
  uniform sampler2D texture,contourTexture;
  uniform float precisionPadding,precisionFeather;uniform vec2 precisionOffset,precisionScale;uniform bool outline;
  uniform vec2 crop,pan;uniform float zoom,angle,brightness,contrast,gamma,saturation,warmth,softness;uniform int mask;
+ // Interpolate the encoded field in float. Some drivers quantize filtered R8
+ // values before decoding, visibly stepping a thin eyelid feather.
+ float contourValue(vec2 uv){ivec2 size=textureSize(contourTexture,0);vec2 p=clamp(uv*vec2(size)-.5,vec2(0),vec2(size-ivec2(1)));ivec2 a=ivec2(floor(p)),b=min(a+ivec2(1),size-ivec2(1));vec2 t=fract(p);
+ return mix(mix(texelFetch(contourTexture,a,0).r,texelFetch(contourTexture,ivec2(b.x,a.y),0).r,t.x),mix(texelFetch(contourTexture,ivec2(a.x,b.y),0).r,texelFetch(contourTexture,b,0).r,t.x),t.y);}
  void main(){
  vec2 uv=gl_TexCoord[0].xy;vec2 p=(uv-.5)*crop/max(.1,zoom);float c=cos(angle),s=sin(angle);vec2 q=vec2(c*p.x-s*p.y,s*p.x+c*p.y)+.5+pan;
  if(q.x<0.||q.x>1.||q.y<0.||q.y>1.){gl_FragColor=vec4(0);return;}
@@ -48,7 +52,7 @@ inline void MaxFaceDraw(sf::RenderTarget& target,const sf::Texture& texture,cons
  vec2 edge=abs(uv-.5)*2.;float distance=mask==0?length(edge):max(edge.x,edge.y);
  if(mask==1){vec2 d=edge-vec2(.75);distance=length(max(d,0.))+min(max(d.x,d.y),0.)+.75;}
  float alpha=texel.a*(1.-smoothstep(1.-max(.002,softness),1.,distance));float signedDistance=-32.;
- if(mask==3){vec2 m=(q-.5-precisionOffset)/precisionScale+.5;if(m.x>=0.&&m.x<=1.&&m.y>=0.&&m.y<=1.)signedDistance=(texture2D(contourTexture,m).r*64.-32.)*(precisionScale.x+precisionScale.y)*.5;
+ if(mask==3){vec2 m=(q-.5-precisionOffset)/precisionScale+.5;if(m.x>=0.&&m.x<=1.&&m.y>=0.&&m.y<=1.)signedDistance=(contourValue(m)*64.-32.)*(precisionScale.x+precisionScale.y)*.5;
  alpha=texel.a*smoothstep(-max(.1,precisionFeather)*.5,max(.1,precisionFeather)*.5,signedDistance+precisionPadding);}
  if(outline&&mask==3){float border=1.-smoothstep(.4,.9,abs(signedDistance+precisionPadding));gl_FragColor=vec4(mix(colour*(alpha>.5?1.:.3),vec3(0.,1.,1.),border),1.);}
  else gl_FragColor=vec4(colour*alpha,alpha);

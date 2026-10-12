@@ -24,9 +24,9 @@ Do not use two instances to publish the same camera. Another instance remains us
 Close the receiving app before removing/updating the camera component.
 To remove it, run Uninstall-Camera.ps1 as administrator. Saved characters remain.
 
-PLANNED
-Surface attachments, local face tracking and live eye/mouth cutouts
-have not been ported into this new foundation yet.
+PNG RIG AND LIVE FACE
+PNG bone rigs, rig-following accessories, local face tracking and eye/mouth sublayers
+are available. See RIGGING.md for setup and precise contour editing.
 
 VALIDATION
 The automated Windows build checks layout, audio-meter thresholds and the frame contract.
