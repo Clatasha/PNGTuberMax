@@ -441,7 +441,7 @@ void LayerManager::DrawEditorGuides(sf::RenderTarget* target)
 		{
 			bool visible = layer.EvaluateLayerVisibility();
 
-			if (visible && layer._isFolder == false)
+			if (visible && layer._isFolder == false && layer._activeSprite != nullptr)
 			{
 				// Draw sprite borders
 
@@ -957,57 +957,17 @@ This works best when all your sprite images are located in a subfolder of RahiTu
 
 void LayerManager::DrawButtonsLayerSetUI()
 {
-	TextCentered(ANSIToUTF8(_layerSetName).c_str());
-	float uiScale = _appConfig->scalingFactor;
-	float btnSize = uiScale * 38;
-	float separatorY = btnSize / 2 - uiScale * 5;
-	sf::Color btnColor = toSFColor(ImGui::GetStyleColorVec4(ImGuiCol_Text));
-	if (ImGui::BeginTable("##toolButtons", 11, ImGuiTableFlags_NoBordersInBody | ImGuiTableFlags_SizingStretchProp))
-	{
-		ImGui::TableNextColumn();
-		_newXMLOpen = MaxUi::IconButton("##newFile", *_newFileIcon, sf::Vector2f(btnSize, btnSize), sf::Color::Transparent, btnColor);
-		ToolTip("New", "Start a new layer set.\n(discards unsaved changes!)", &_appConfig->_hoverTimer);
-		ImGui::TableNextColumn();
-		_loadXMLOpen = MaxUi::IconButton("##Open", *_openFileIcon, sf::Vector2f(btnSize, btnSize), sf::Color::Transparent, btnColor);
-		ToolTip("Open", "Browse for a layer set (.xml) file.", &_appConfig->_hoverTimer);
-		ImGui::TableNextColumn();
-		_saveXMLOpen = MaxUi::IconButton("##save", *_saveIcon, sf::Vector2f(btnSize, btnSize), sf::Color::Transparent, btnColor);
-		ToolTip("Save", "Save the current layer set.", &_appConfig->_hoverTimer);
-		ImGui::TableNextColumn();
-		_saveAsXMLOpen = MaxUi::IconButton("##saveAs", *_saveAsIcon, sf::Vector2f(btnSize, btnSize), sf::Color::Transparent, btnColor);
-		ToolTip("Save As", "Save the current layer set with a new name.", &_appConfig->_hoverTimer);
-		ImGui::TableNextColumn();
-		_makePortableOpen = MaxUi::IconButton("##makePortable", *_makePortableIcon, sf::Vector2f(btnSize, btnSize), sf::Color::Transparent, btnColor);
-		ToolTip("Model Options", "Options for porting and optimising your model", &_appConfig->_hoverTimer);
-		ImGui::TableNextColumn();
-		_reloadXMLOpen = MaxUi::IconButton("##reload", *_reloadIcon, sf::Vector2f(btnSize, btnSize), sf::Color::Transparent, btnColor);
-		ToolTip("Reload", "Reload the specified layer set.\n(discards unsaved changes!)", &_appConfig->_hoverTimer);
-
-		ImGui::TableNextColumn();
-		ImGui::SetCursorPosY(ImGui::GetCursorPosY() + separatorY);
-		ImGui::Text("|");
-
-		ImGui::TableNextColumn();
-		_newLayerOpen = MaxUi::IconButton("##newLayer", *_newLayerIcon, sf::Vector2f(btnSize, btnSize), sf::Color::Transparent, btnColor);
-		ToolTip("Add Layer", "Add a new Layer to the top of the list.", &_appConfig->_hoverTimer);
-		ImGui::TableNextColumn();
-		_newFolderOpen = MaxUi::IconButton("##newFolder", *_newFolderIcon, sf::Vector2f(btnSize, btnSize), sf::Color::Transparent, btnColor);
-		ToolTip("Add Folder", "Add a new Folder to the top of the list.", &_appConfig->_hoverTimer);
-
-		ImGui::TableNextColumn();
-		ImGui::SetCursorPosY(ImGui::GetCursorPosY() + separatorY);
-		ImGui::Text("|");
-
-		ImGui::TableNextColumn();
-		_editStatesOpen = MaxUi::IconButton("##states", *_statesIcon, sf::Vector2f(btnSize, btnSize), sf::Color::Transparent, btnColor);
-		ToolTip("States", "Configure the States for this Layer Set.", &_appConfig->_hoverTimer);
-
-		ImGui::EndTable();
-	}
+    TextCentered(ANSIToUTF8(_layerSetName).c_str());float size=24*_appConfig->scalingFactor;auto color=toSFColor(ImGui::GetStyleColorVec4(ImGuiCol_Text));
+    auto action=[&](const char* id,sf::Texture* icon,bool& flag,const char* label,const char* help){ImGui::TableNextColumn();flag=MaxUi::IconButton(id,*icon,sf::Vector2f(size,size),sf::Color::Transparent,color);ToolTip(help,&_appConfig->_hoverTimer);ImGui::TextUnformatted(label);};
+    if(ImGui::BeginTable("##projectFiles",4,ImGuiTableFlags_SizingStretchSame)){action("new",_newFileIcon,_newXMLOpen,"New","New layer set");action("open",_openFileIcon,_loadXMLOpen,"Open","Open XML project. Hold Ctrl to merge into this project.");if(_loadXMLOpen)_mergingLayerSet=ImGui::GetIO().KeyCtrl;action("save",_saveIcon,_saveXMLOpen,"Save","Save project");action("saveas",_saveAsIcon,_saveAsXMLOpen,"Save as","Save as another project");ImGui::EndTable();}
+    if(ImGui::BeginTable("##projectLayers",5,ImGuiTableFlags_SizingStretchSame)){action("portable",_makePortableIcon,_makePortableOpen,"Portable","Package this project with its images");action("reload",_reloadIcon,_reloadXMLOpen,"Reload","Reload project");action("layer",_newLayerIcon,_newLayerOpen,"Layer","Add an image layer");action("folder",_newFolderIcon,_newFolderOpen,"Folder","Add a folder");action("states",_statesIcon,_editStatesOpen,"States","Configure expressions and shortcuts");ImGui::EndTable();}
 }
 
 void LayerManager::DrawGUI(ImGuiStyle& style, float maxHeight)
 {
+    _drawingLayerUI=false;if(_loadingFinished){auto requests=std::move(_pendingLayers);_pendingLayers.clear();for(const auto& request:requests){auto* source=request.source.empty()?nullptr:GetLayer(request.source);if(!request.source.empty()&&!source)continue;AddLayer(source,request.folder,request.position);}}
+    _drawingLayerUI=true;
+
 	float topBarBegin = ImGui::GetCursorPosY();
 
 	ImGui::PushID("layermanager"); {
@@ -1557,6 +1517,8 @@ void LayerManager::DrawMenusLayerSetUI()
 
 LayerManager::LayerInfo* LayerManager::AddLayer(const LayerInfo* toCopy, bool isFolder, int insertPosition)
 {
+    if(_drawingLayerUI){_pendingLayers.push_back({toCopy?toCopy->_id:"",isFolder,insertPosition});return nullptr;}
+
 	_errorMessage = "";
 
 	LayerInfo newLayer = LayerInfo();
@@ -1582,8 +1544,8 @@ LayerManager::LayerInfo* LayerManager::AddLayer(const LayerInfo* toCopy, bool is
 		newLayer._uniqueTracking = std::make_shared<LayerInfo::TrackingSettings>();
 		newLayer._uniqueTrackingMotion = std::make_shared<LayerInfo::TrackingMotion>();
 
-		*(newLayer._uniqueTracking.get()) = *(toCopy->_uniqueTracking.get());
-		*(newLayer._uniqueTrackingMotion.get()) = *(toCopy->_uniqueTrackingMotion.get());
+		if(toCopy->_uniqueTracking)*(newLayer._uniqueTracking.get()) = *(toCopy->_uniqueTracking.get());
+		if(toCopy->_uniqueTrackingMotion)*(newLayer._uniqueTrackingMotion.get()) = *(toCopy->_uniqueTrackingMotion.get());
 
 		newLayer.SyncAnims(newLayer._animsSynced);
 
@@ -1632,6 +1594,7 @@ LayerManager::LayerInfo* LayerManager::AddLayer(const LayerInfo* toCopy, bool is
 		layer->_uniqueTrackingMotion = std::make_shared<LayerInfo::TrackingMotion>();
 	}
 
+if(!layer){_errorMessage="The source layer no longer exists.";return nullptr;}
 	std::string guid;
 
 	GenerateGuid(guid);
@@ -1657,28 +1620,10 @@ LayerManager::LayerInfo* LayerManager::AddLayer(const LayerInfo* toCopy, bool is
 	else
 		layer->SetUnloadingTimer(0);
 
-	int childPosition = layerPosition + 1;
-	for (auto& id : _layers[layerPosition]._folderContents)
-	{
-		LayerInfo* origChild = GetLayer(id);
-		if (origChild != nullptr)
-		{
-			// remove the original child from its folder temporarily, so this duplicate doesn't get added to the original
-			std::string origInFolder = origChild->_inFolder;
-			origChild->_inFolder = "";
-
-			LayerInfo* child = AddLayer(origChild, false, childPosition);
-
-			// put the original back in its folder
-			origChild = GetLayer(id);
-			origChild->_inFolder = origInFolder;
-
-			// add the new copy to this new folder
-			child->_inFolder = guid;
-			id = child->_id;
-			childPosition++;
-		}
-	}
+    int childPosition = layerPosition + 1;
+    const auto originalChildren=layer->_folderContents;std::vector<std::string> copiedChildren;
+    for(const auto& originalId:originalChildren){auto* original=GetLayer(originalId);if(!original)continue;std::string originalFolder=original->_inFolder;original->_inFolder="";auto* copied=AddLayer(original,false,childPosition);original=GetLayer(originalId);if(original)original->_inFolder=originalFolder;if(!copied)continue;copied->_inFolder=guid;copiedChildren.push_back(copied->_id);childPosition++;}
+    layer=GetLayer(guid);if(!layer)return nullptr;layer->_folderContents=std::move(copiedChildren);
 
 	//reassign since things probably got moved
 	layer = &_layers[layerPosition];

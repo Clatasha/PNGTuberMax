@@ -41,3 +41,9 @@ See [the roadmap](docs/ROADMAP.md) and [upstream provenance](docs/UPSTREAM.md). 
 PNGTuber Max is a modified derivative of [RahiTuber](https://github.com/ThomasR95/rahituber), created by Rahisaurus (Tom Rule). It is not an official RahiTuber release and does not imply endorsement.
 
 The upstream license and notices are retained in [LICENSE.txt](LICENSE.txt). Third-party code retains its own licenses. The About screen retains author acknowledgements. The repository license text contains BSD-style modification/redistribution terms; the upstream itch.io page labels the project GPLv3, so this discrepancy must be resolved before a public binary release. This source foundation preserves the existing notices and does not claim a different license for upstream code.
+
+## 0.1.2 workspace update
+
+The editor now separates studio/layers (left), avatar preview (middle), and persistent Preferences (right). File imports and project open/save use Windows native dialogs. The selected microphone has a six-block live raw-input peak meter, independent of the talking threshold. Layer additions/duplicates are deferred to avoid invalidating UI references, and blank-sprite editor guides are guarded.
+
+Camera installation handles downloaded-DLL blocking and logs native registration warnings without treating them as fatal errors. The in-app Camera preferences show setup results and launch a frame-delivery diagnostic. Windows CI additionally installs the camera and verifies actual DirectShow samples against a shared-memory test pattern. This does not prove compatibility with every receiving app or the user's specific camera error.

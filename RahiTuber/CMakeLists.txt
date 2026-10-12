@@ -56,6 +56,7 @@ target_sources(RahiTuber PRIVATE
     MaxUi.h
     MaxCamera.h
     CameraFrame.h
+    WorkspaceLayout.h
     GamePad.h
     GamePad.cpp
     ffwdClock.h

@@ -17,12 +17,24 @@ jobs:
       - name: Configure Windows x64
         run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
       - name: Build app and frame test
-        run: cmake --build build --config Release --target RahiTuber MaxCameraFrameTests --parallel 4
+        run: cmake --build build --config Release --target RahiTuber MaxCameraFrameTests MaxWorkspaceTests --parallel 4
       - name: Test frame contract
-        run: .\build\Release\MaxCameraFrameTests.exe
+        run: |
+          .\build\Release\MaxCameraFrameTests.exe
+          .\build\Release\MaxWorkspaceTests.exe
       - name: Package preview
         shell: powershell
         run: .\scripts\Package-Windows.ps1
+      - name: Test camera installation and real DirectShow delivery
+        shell: powershell
+        run: |
+          $result = Join-Path $env:TEMP 'max-camera-setup.txt'
+          & .\dist\PNGTuberMax\Install-Camera.ps1 -Quiet -ResultPath $result
+          Get-Content $result
+          if ($LASTEXITCODE -ne 0) { throw 'Camera registration failed.' }
+          $test = Start-Process .\dist\PNGTuberMax\CameraDiagnostic.exe -ArgumentList '--ci --simulate' -Wait -PassThru
+          Get-Content "$env:LOCALAPPDATA\Clatasha\PNGTuberMax\camera-report.txt"
+          if ($test.ExitCode -ne 0) { throw 'DirectShow delivery test failed.' }
       - uses: actions/upload-artifact@v4
         with:
           name: PNGTuberMax-Windows-Preview

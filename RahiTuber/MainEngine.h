@@ -18,6 +18,7 @@
 #include "defines.h"
 #include "MaxUi.h"
 #include "MaxCamera.h"
+#include "WorkspaceLayout.h"
 
 #include <fstream>
 
@@ -110,6 +111,8 @@ int recordCallback(const void* inputBuffer, void* outputBuffer,
 	PaStreamCallbackFlags statusFlags,
 	void* userData)
 {
+	if(!g_audioConfig||!inputBuffer)return paContinue;
+    float blockPeak=0;
 	int checkSize = framesPerBuffer;
 
 	int numChannels = g_audioConfig->_params.channelCount;
@@ -132,6 +135,7 @@ int recordCallback(const void* inputBuffer, void* outputBuffer,
 		if (numChannels == 2)
 			splRight = (*rptr++);
 
+		blockPeak=std::max(blockPeak,std::max(std::fabs(splLeft),std::fabs(splRight)));
 		SAMPLE spl = (splLeft + splRight) / 2.f;
 
 		spl = spl * spl;
@@ -145,6 +149,7 @@ int recordCallback(const void* inputBuffer, void* outputBuffer,
 		s++;
 	}
 
+	float oldPeak=g_audioConfig->_inputPeak.load(std::memory_order_relaxed);while(oldPeak<blockPeak&&!g_audioConfig->_inputPeak.compare_exchange_weak(oldPeak,blockPeak,std::memory_order_relaxed)){}
 	g_audioConfig->_processedNew = true;
 
 	return paContinue;
@@ -164,6 +169,8 @@ public:
 
 	Shader _FXAAShader;
     MaxCamera camera;
+    int preferenceSection=0;float meterPeak=0;sf::Clock meterClock;
+    MaxWorkspace Workspace(){return MaxWorkspace::Make(appConfig->_scrW,appConfig->_scrH,appConfig->_scrW,appConfig->_scrH);}
 
 	void LoadCustomFont()
 	{
@@ -377,7 +384,7 @@ public:
 				}
 
 				auto beforeCreate = std::chrono::system_clock::now();
-				appConfig->_window.create(sf::VideoMode(appConfig->_scrW, appConfig->_scrH, 32U), name, 0, settings);
+				appConfig->_window.create(sf::VideoMode(appConfig->_scrW, appConfig->_scrH, 32U), name, sf::Style::Default, settings);
 				logToFile(appConfig, "Window Creation took " + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>((std::chrono::system_clock::now() - beforeCreate)).count()) + " ms");
 				appConfig->_pendingNameChange = false;
 				appConfig->_window.setPosition({ appConfig->_scrX, appConfig->_scrY });
@@ -402,7 +409,7 @@ public:
 		appConfig->_layersRT.create(appConfig->_scrW, appConfig->_scrH, settings);
         appConfig->_layersRT.setSmooth(true);
 
-		float cornerGrabSize = 20 * appConfig->mainWindowScaling;
+		float cornerGrabSize = 0;
 
 		uiConfig->_topLeftBox.setPosition(0, 0);
 		uiConfig->_topLeftBox.setSize({ cornerGrabSize,cornerGrabSize });
@@ -435,7 +442,8 @@ public:
 			//	SetWindowPos(hwnd2, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 		}
 
-		setWindowTransparency(hwnd, appConfig->_transparent);
+		setWindowTransparency(hwnd, false);
+        BOOL darkTitle=TRUE;DwmSetWindowAttribute(hwnd,20,&darkTitle,sizeof darkTitle);
 
 #else
 		Display* display = XOpenDisplay(NULL);
@@ -550,7 +558,7 @@ public:
 			ImGui::SetWindowSize({ 400 * appConfig->scalingFactor,-1 });
 
             ImGui::SeparatorText("PNGTuber Max by Clatasha");
-            ImGui::TextWrapped("PNGTuber Max 0.1.1 preview. Virtual camera output is integrated; plush PNG mode and face tracking are next.");
+            ImGui::TextWrapped("PNGTuber Max 0.1.2 preview. Virtual camera output is integrated; plush PNG mode and face tracking are next.");
             if (MaxUi::Button("PNGTuber Max releases", { -1, UIUnit }))
                 OsOpenInShell("https://github.com/Clatasha/PNGTuberMax/releases");
             ToolTip("Opens PNGTuber Max releases on GitHub.", &appConfig->_hoverTimer);
@@ -606,7 +614,7 @@ public:
             ImGui::TextWrapped("RahiTuber (c) 2018-%d Rahisaurus (Tom Rule)", year);
 			ImGui::PopStyleColor(2);
 
-			ImGui::TextWrapped("PNGTuber Max 0.1.1 preview / RahiTuber engine %.3f", appConfig->_versionNumber);
+			ImGui::TextWrapped("PNGTuber Max 0.1.2 preview / RahiTuber engine %.3f", appConfig->_versionNumber);
 
 			ImGui::Separator();
 			if (MaxUi::Button("OK", { -1,20 }))
@@ -617,116 +625,27 @@ public:
 		}
 	}
 
-	void menuAdvanced(ImGuiStyle& style)
-	{
-		float UIUnit = ImGui::GetFrameHeight();
-
-		if (MaxUi::Button("Preferences", { -1, ImGui::GetFrameHeight() }))
-		{
-			float h = ImGui::GetWindowHeight();
-			ImGui::SetNextWindowSize({ UIUnit * 22, h });
-
-			if (appConfig->_menuWindow.isOpen())
-			{
-				ImVec2 wSize = ImGui::GetCurrentWindow()->Size;
-				ImGui::SetNextWindowPos({ wSize.x / 2 - UIUnit*12, wSize.y / 6 });
-			}
-			else
-			{
-				ImGui::SetNextWindowPos({ appConfig->_scrW / 2 - UIUnit*12, appConfig->_scrH/2 - uiConfig->_advancedMenuHeight/2 });
-			}
-			ImGui::OpenPopup("Preferences");
-		}
-		ImGui::SetNextWindowSize({ UIUnit * 22,-1 });
-
-
-		uiConfig->_advancedMenuShowing = false;
-
-		bool p_open = true;
-		if (ImGui::BeginPopupModal("Preferences", &p_open, ImGuiWindowFlags_NoResize))
-		{
-			ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, { 2,2 });
-
-			uiConfig->_advancedMenuShowing = true;
-
-			bool rowTop = uiConfig->_advancedMenuTopRow;
-
-			if (rowTop)
-			{
-				menuAdvancedWindowTab(rowTop);
-				menuAdvancedAppearanceTab(rowTop, UIUnit);
-				menuAdvancedBehaviourTab(rowTop);
-				menuAdvancedShortcutsTab(rowTop, style);
-
-				ImGui::NewLine();
-				ImGui::SetCursorPosY(ImGui::GetCursorPosY() - UIUnit * 0.3);
-				ImGui::BeginTabBar("##AdvMenuTabs2");
-
-				menuAdvancedIntegrationTab(rowTop, UIUnit);
-				menuAdvancedPhonemesTab(rowTop, style);
-				menuAdvancedTrackingTab(rowTop, style);
-			}
-			else
-			{
-				menuAdvancedIntegrationTab(rowTop, UIUnit);
-				menuAdvancedPhonemesTab(rowTop, style);
-				menuAdvancedTrackingTab(rowTop, style);
-
-				ImGui::NewLine();
-				ImGui::SetCursorPosY(ImGui::GetCursorPosY() - UIUnit * 0.3);
-				ImGui::BeginTabBar("##AdvMenuTabs");
-
-				menuAdvancedWindowTab(rowTop);
-				menuAdvancedAppearanceTab(rowTop, UIUnit);
-				menuAdvancedBehaviourTab(rowTop);
-				menuAdvancedShortcutsTab(rowTop, style);
-
-			}
-
-			ImGui::EndTabBar();
-
-			if (rowTop)
-			{
-				if (uiConfig->_advMenuPending_windowTab ||
-					uiConfig->_advMenuPending_appearanceTab ||
-					uiConfig->_advMenuPending_behaviourTab ||
-					uiConfig->_advMenuPending_shortcutsTab)
-				{
-					rowTop = false;
-					uiConfig->_advMenuPending_integrationTab = false;
-					uiConfig->_advMenuPending_phonemesTab = false;
-					uiConfig->_advMenuPending_trackingTab = false;
-				}
-			}
-			else
-			{
-				if (uiConfig->_advMenuPending_integrationTab ||
-					uiConfig->_advMenuPending_phonemesTab ||
-					uiConfig->_advMenuPending_trackingTab)
-				{
-					rowTop = true;
-					uiConfig->_advMenuPending_windowTab = false;
-					uiConfig->_advMenuPending_appearanceTab = false;
-					uiConfig->_advMenuPending_behaviourTab = false;
-					uiConfig->_advMenuPending_shortcutsTab = false;
-				}
-			}
-
-			uiConfig->_advancedMenuTopRow = rowTop;
-
-
-			if (MaxUi::Button("OK", { -1, ImGui::GetFrameHeight() }))
-			{
-				ImGui::CloseCurrentPopup();
-			}
-
-			ImGui::PopStyleVar();
-
-			uiConfig->_advancedMenuHeight - ImGui::GetWindowHeight();
-
-			ImGui::EndPopup();
-		}
-	}
+    void menuAdvanced(ImGuiStyle& style) {
+        auto layout=Workspace();ImGui::SetNextWindowPos({layout.right.x,layout.right.y});ImGui::SetNextWindowSize({layout.right.w,layout.right.h});
+        ImGui::Begin("Preferences##rightDock",nullptr,ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize|ImGuiWindowFlags_NoCollapse|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoFocusOnAppearing);
+        uiConfig->_advancedMenuShowing=ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+        const char* sections[]={"Camera","Window","Appearance","Behaviour","Shortcuts","Integration","Mouth shapes","Tracking"};
+        if(uiConfig->_advMenuPending_windowTab)preferenceSection=1;if(uiConfig->_advMenuPending_appearanceTab)preferenceSection=2;if(uiConfig->_advMenuPending_behaviourTab)preferenceSection=3;if(uiConfig->_advMenuPending_shortcutsTab)preferenceSection=4;if(uiConfig->_advMenuPending_integrationTab)preferenceSection=5;if(uiConfig->_advMenuPending_phonemesTab)preferenceSection=6;if(uiConfig->_advMenuPending_trackingTab)preferenceSection=7;
+        ImGui::SetNextItemWidth(-1);ImGui::Combo("##preferenceSection",&preferenceSection,sections,8);ImGui::Separator();
+        if(preferenceSection==0){
+            ImGui::TextWrapped("PNGTuber Max Camera");ImGui::TextWrapped("%s",camera.Status().c_str());
+            if(MaxUi::Button("Install / repair camera",{-1,0}))camera.Setup(appConfig->_appLocation);
+            if(MaxUi::Button("Check camera delivery",{-1,0}))camera.Check(appConfig->_appLocation);
+            if(MaxUi::Button(camera.On()?"Stop camera output":"Start camera output",{-1,0})){if(camera.On())camera.Stop();else camera.Start();}
+            ImGui::TextWrapped("After setup, restart your receiving app and choose PNGTuber Max Camera. Starting output does not open another preview window.");
+            ImGui::TextWrapped("640 x 480 / 30 FPS. Setup asks Windows for administrator access once; normal use does not.");
+        }else if(ImGui::BeginTabBar("##DockPreferenceContent")){
+            bool rowTop=preferenceSection<=4;float unit=ImGui::GetFrameHeight();ImGui::PushStyleVar(ImGuiStyleVar_CellPadding,{2,2});
+            switch(preferenceSection){case 1:menuAdvancedWindowTab(rowTop);break;case 2:menuAdvancedAppearanceTab(rowTop,unit);break;case 3:menuAdvancedBehaviourTab(rowTop);break;case 4:menuAdvancedShortcutsTab(rowTop,style);break;case 5:menuAdvancedIntegrationTab(rowTop,unit);break;case 6:menuAdvancedPhonemesTab(rowTop,style);break;case 7:menuAdvancedTrackingTab(rowTop,style);break;}
+            ImGui::PopStyleVar();ImGui::EndTabBar();
+        }
+        ImGui::End();
+    }
 
 	void menuAdvancedTrackingTab(bool& rowTop, ImGuiStyle& style)
 	{
@@ -1114,7 +1033,7 @@ public:
 							{
 								appConfig->_scrW = appConfig->_fullScrW + 1;
 								appConfig->_scrH = appConfig->_fullScrH + 1;
-								appConfig->_window.create(sf::VideoMode(appConfig->_scrW, appConfig->_scrH), appConfig->windowName, 0);
+								appConfig->_window.create(sf::VideoMode(appConfig->_scrW, appConfig->_scrH), appConfig->windowName, sf::Style::Default);
 								appConfig->_window.setIcon((int)uiConfig->_ico.getSize().x, (int)uiConfig->_ico.getSize().y, uiConfig->_ico.getPixelsPtr());
 								appConfig->_window.setSize({ (sf::Uint16)appConfig->_scrW, (sf::Uint16)appConfig->_scrH });
 								appConfig->_window.setPosition({ 0,0 });
@@ -1514,9 +1433,7 @@ public:
 
 		ImGui::PushID("AudImpCombo");
 		ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x - ImGui::GetFrameHeightWithSpacing());
-		std::string deviceName = "None";
-		if (audioConfig->_deviceList.size() > audioConfig->_devIdx)
-			deviceName = audioConfig->_deviceList[audioConfig->_devIdx].first;
+		std::string deviceName = audioConfig->GetAudioDeviceName(audioConfig->_devIdx);if(deviceName.empty())deviceName="None";
 		bool devListFirstOpen = false;
 		if (ImGui::BeginCombo("", deviceName.c_str()))
 		{
@@ -1548,6 +1465,11 @@ public:
 			ListAudioDevices(true);
 		ImGui::PopStyleVar();
 		ToolTip("Refresh input device list", &appConfig->_hoverTimer);
+        float elapsed=meterClock.restart().asSeconds();float observed=audioConfig->_inputPeak.exchange(0.f,std::memory_order_relaxed);meterPeak=std::max(observed,meterPeak*std::exp(-elapsed*8));if(audioConfig->_devIdx<0)meterPeak=0;
+        int lit=MaxMeterBlocks(meterPeak);auto position=ImGui::GetCursorScreenPos();float available=ImGui::GetContentRegionAvail().x,gap=5,width=(available-gap*5)/6;auto* meter=ImGui::GetWindowDrawList();
+        for(int i=0;i<6;i++){ImU32 color=i<lit?(i<4?IM_COL32(63,208,148,255):i==4?IM_COL32(245,184,66,255):IM_COL32(244,84,99,255)):IM_COL32(34,52,75,255);meter->AddRectFilled({position.x+i*(width+gap),position.y},{position.x+i*(width+gap)+width,position.y+12},color,3);}
+        ImGui::Dummy({available,17});ImGui::TextDisabled("Live input level%s",meterPeak>=.99f?" / CLIPPING":"");
+
 
 		if (uiConfig->_audioExpanded)
 		{
@@ -1921,6 +1843,7 @@ public:
 
 		MaxUi::ApplyStyle(style, appConfig->scalingFactor);
         backdropCol = sf::Color(12,20,35);
+        uiConfig->_moveTabSize={0,0};
         uiConfig->_styleLoaded = true;
 
 		float UIUnit = ImGui::GetFrameHeight();
@@ -1935,247 +1858,32 @@ public:
 		uiConfig->_lastTheme = uiConfig->_theme;
 	}
 
-	void menu()
-	{
-		bool menuUnpopped = appConfig->_menuPopped == true && appConfig->_menuPopPending == false;
-		bool menuPoppedNow = appConfig->_menuPopped == false && appConfig->_menuPopPending == true;
-
-		if(menuPoppedNow)
-			uiConfig->_lastTheme = "";
-
-		appConfig->_menuPopped = appConfig->_menuPopPending;
-
-		float lastScaleFactor = appConfig->scalingFactor;
-
-		if (appConfig->_menuPopped)
-		{
-			ImGui::SFML::SetCurrentWindow(appConfig->_menuWindow);
-			appConfig->scalingFactor = appConfig->menuWindowScaling * appConfig->customScaling;
-			ImGui::SFML::Update(appConfig->_menuWindow, appConfig->_timer.getElapsedTime());
-		}
-		else
-		{
-			ImGui::SFML::SetCurrentWindow(appConfig->_window);
-			appConfig->scalingFactor = appConfig->mainWindowScaling * appConfig->customScaling;
-			ImGui::SFML::Update(appConfig->_window, appConfig->_timer.getElapsedTime());
-		}
-
-		if (ImGui::IsAnyItemHovered() == false)
-			appConfig->_hoverTimer.restart();
-
-		sf::Color backdropCol;
-
-		ImGuiIO& io = ImGui::GetIO();
-
-		auto& style = ImGui::GetStyle();
-
-		if(uiConfig->_theme != uiConfig->_lastTheme || appConfig->scalingFactor != lastScaleFactor)
-			RefreshStyle(style, io, backdropCol);
-
-		io.FontGlobalScale = appConfig->scalingFactor * 0.5;
-
-		if (appConfig->_menuWindow.isOpen())
-		{
-			appConfig->_menuWindow.clear(toSFColor(style.Colors[ImGuiCol_FrameBg]));
-		}
-
-		// Main menu window
-
-		float UIUnit = ImGui::GetFrameHeight();
-
-		float windowHeight = appConfig->_scrH - 20;
-		if (appConfig->_menuPopped == false)
-		{
-			ImGui::SetNextWindowPos(ImVec2(10, 10));
-			ImGui::SetNextWindowSize({ UIUnit*25, windowHeight });
-
-			sf::RectangleShape backdrop({ UIUnit*25 - 4, windowHeight - 6 * appConfig->scalingFactor });
-			backdrop.setPosition(13, 13);
-			backdrop.setFillColor(backdropCol);
-			appConfig->_menuRT.draw(backdrop);
-
-			ImGui::Begin("PNGTuber Max by Clatasha", 0, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar);
-
-		}
-		else
-		{
-			sf::Vector2u windSize = appConfig->_menuWindow.getSize();
-			windSize.y -= 4;
-			windowHeight = windSize.y;
-			ImGui::SetNextWindowPos(ImVec2(0, 0));
-			ImGui::SetNextWindowSize(ImVec2(windSize.x, windSize.y));
-
-			ImGui::Begin("PNGTuber Max by Clatasha", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar);
-
-		}
-
-		ImDrawList* dList = ImGui::GetWindowDrawList();
-        MaxUi::BrandHeader();
-#ifdef _WIN32
-        if(MaxUi::Button(camera.On()?"Stop virtual camera":"Start virtual camera")){if(camera.On())camera.Stop();else camera.Start();}
-        ImGui::SameLine();if(MaxUi::Button("Camera setup"))camera.Setup(appConfig->_appLocation);
-        ImGui::TextColored(ImVec4(.55f,.73f,.95f,1),"%s",camera.Status().c_str());
-#endif
-
-		std::string menuShowName = "Close Menu (Esc)";
-		std::string menuPopName = "Popout Menu";
-		if (appConfig->_menuPopped)
-		{
-			menuPopName = "Dock Menu";
-			if (uiConfig->_menuShowing)
-				menuShowName = "Hide Interface (Esc)";
-			else
-				menuShowName = "Show Interface (Esc)";
-		}
-
-		ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, { 2,0 });
-		ImGui::BeginTable("##menuVisibility", 2, ImGuiTableFlags_NoBordersInBody | ImGuiTableFlags_SizingStretchSame);
-		ImGui::TableNextColumn();
-		if (MaxUi::Button(menuShowName.c_str(), { -1, UIUnit }))
-		{
-			uiConfig->_menuShowing = !uiConfig->_menuShowing;
-		}
-		ImGui::TableNextColumn();
-		if (MaxUi::Button(menuPopName.c_str(), { -1, UIUnit }))
-		{
-			appConfig->_menuPopPending = !appConfig->_menuPopPending;
-			layerMan->CloseAllPopups();
-		}
-		ImGui::EndTable();
-		ImGui::PopStyleVar();
-
-		//	FULLSCREEN
-		if (MaxUi::Button(appConfig->_isFullScreen ? "Exit Fullscreen (F11)" : "Fullscreen (F11)", { -1, UIUnit }))
-		{
-			swapFullScreen();
-		}
-
-		ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, { 2,0 });
-		ImGui::BeginTable("##menuVisibility", 2, ImGuiTableFlags_NoBordersInBody | ImGuiTableFlags_SizingStretchSame);
-		ImGui::TableNextColumn();
-		menuHelp(style);
-
-		ImGui::TableNextColumn();
-
-		menuAdvanced(style);
-		ImGui::EndTable();
-		ImGui::PopStyleVar();
-
-		float fontFrameHeight = style.FramePadding.y * 2 + uiConfig->_fontSize*appConfig->scalingFactor / 2 + style.ItemSpacing.y / 2;
-
-		ImGui::Separator();
-		float separatorPos = ImGui::GetCursorPosY();
-		float nextSectionPos = windowHeight - fontFrameHeight * 7.4;
-		if (!uiConfig->_audioExpanded)
-			nextSectionPos = windowHeight - fontFrameHeight * 5.2;
-
-		layerMan->DrawGUI(style, nextSectionPos - separatorPos);
-
-		//	INPUT LIST
-		ImGui::SetCursorPosY(nextSectionPos);
-		ImGui::Separator();
-		menuAudio(style);
-
-		ImGui::SetCursorPosY(windowHeight - fontFrameHeight * 2.7);
-		ImGui::Separator();
-		menuPresets(style);
-
-		ImGui::Separator();
-
-		float milliseconds = appConfig->_runTime.getElapsedTime().asMilliseconds();
-		float pulse = sin(milliseconds / 300.f);
-
-		//	EXIT
-		ImGui::PushStyleColor(ImGuiCol_Button, style.Colors[ImGuiCol_FrameBg]);
-		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, { 0.5f + 0.2f * pulse, 0.f, 0.f, 1.0f });
-		ImGui::PushStyleColor(ImGuiCol_ButtonActive, { 0.3f, 0.f, 0.f, 1.0f });
-		if (MaxUi::Button("Exit PNGTuber Max", { -1, UIUnit }))
-		{
-			if (appConfig->_menuWindow.isOpen())
-				appConfig->_lastMenuPopPosition = appConfig->_menuWindow.getPosition();
-
-			appConfig->_menuWindow.close();
-			camera.Stop();
-            appConfig->_window.close();
-		}
-		ImGui::PopStyleColor(3);
-
-		bool popupOpen = ImGui::IsPopupOpen(ImGuiID(0), ImGuiPopupFlags_AnyPopup);
-
-		ImGui::End();
-
-		if (appConfig->_menuPopped)
-		{
-			ImGui::EndFrame();
-			ImGui::SFML::Render(appConfig->_menuWindow);
-			ImGui::SFML::Update(appConfig->_window, appConfig->_timer.getElapsedTime());
-		}
-
-		if (!appConfig->_isFullScreen && uiConfig->_menuShowing)
-		{
-			// Move tab in the top centre
-			ImGui::SetNextWindowPos({ appConfig->_scrW / 2 - 40 * appConfig->mainWindowScaling, 0 });
-			ImGui::SetNextWindowSize({ uiConfig->_moveTabSize.x * appConfig->mainWindowScaling, uiConfig->_moveTabSize.y * appConfig->mainWindowScaling });
-
-			ImGui::Begin("move_tab", 0, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar);
-			ImGui::SetCursorPos({ uiConfig->_moveTabSize.x / 2 - 12 * appConfig->mainWindowScaling,4 * appConfig->mainWindowScaling });
-			ImGui::Image(uiConfig->_moveIconSprite, sf::Vector2f(24 * appConfig->mainWindowScaling, 24 * appConfig->mainWindowScaling), toSFColor(style.Colors[ImGuiCol_Text]));
-			ImGui::End();
-		}
-
-		ImGui::EndFrame();
-		ImGui::SFML::Render(appConfig->_menuRT);
-
-		if (appConfig->_updateAvailable && !popupOpen)
-		{
-			sf::Color pulseColor(255u, 255u, 255u, 128u + 127u * pulse);
-			sf::CircleShape dotShape(ImGui::GetFrameHeight()*0.26, 10);
-			dotShape.setFillColor(toSFColor(style.Colors[ImGuiCol_ButtonActive]) * pulseColor);
-			dotShape.setOutlineThickness(0.5);
-			dotShape.setOutlineColor(toSFColor(style.Colors[ImGuiCol_ButtonHovered]) * pulseColor);
-
-			if (appConfig->_menuPopped)
-			{
-				dotShape.setPosition(uiConfig->_helpBtnPosition);// / appConfig->menuWindowScaling);
-				appConfig->_menuWindow.draw(dotShape);
-			}
-			else
-			{
-				dotShape.setPosition(uiConfig->_helpBtnPosition);
-				appConfig->_menuRT.draw(dotShape);
-			}
-		}
-
-		if (menuUnpopped)
-		{
-			appConfig->_lastMenuPopPosition = appConfig->_menuWindow.getPosition();
-			appConfig->_menuWindow.close();
-			appConfig->_window.requestFocus();
-		}
-
-		if (menuPoppedNow)
-		{
-			float scaleFactor = CheckMonitorScaleFactor(appConfig->_lastMenuPopPosition, { (sf::Uint16)(UIUnit * 25), (sf::Uint16)appConfig->_scrH + 4u });
-			float scaleFactorDiff = scaleFactor / appConfig->mainWindowScaling;
-
-			appConfig->_menuWindow.create(sf::VideoMode(scaleFactorDiff * UIUnit * 25, appConfig->_scrH * scaleFactorDiff + 4), "PNGTuber Max by Clatasha - Menu", sf::Style::Default | sf::Style::Resize | sf::Style::Titlebar);
-			appConfig->_menuWindow.setIcon(uiConfig->_ico.getSize().x, uiConfig->_ico.getSize().y, uiConfig->_ico.getPixelsPtr());
-
-			appConfig->_menuWindow.setPosition(appConfig->_lastMenuPopPosition);
-			appConfig->_menuWindow.requestFocus();
-
-
-			sf::Event dummyFocus;
-			dummyFocus.type = sf::Event::GainedFocus;
-			ImGui::SFML::ProcessEvent(appConfig->_menuWindow, dummyFocus);
-		}
-
-		uiConfig->_firstMenu = false;
-	}
+    void menu() {
+        appConfig->_menuPopped=appConfig->_menuPopPending=false;uiConfig->_menuShowing=true;
+        ImGui::SFML::SetCurrentWindow(appConfig->_window);appConfig->scalingFactor=appConfig->mainWindowScaling*appConfig->customScaling;
+        ImGui::SFML::Update(appConfig->_window,appConfig->_timer.getElapsedTime());auto& style=ImGui::GetStyle();auto& io=ImGui::GetIO();sf::Color backdrop;
+        if(!uiConfig->_styleLoaded||uiConfig->_theme!=uiConfig->_lastTheme)RefreshStyle(style,io,backdrop);io.FontGlobalScale=appConfig->scalingFactor*.5f;
+        auto layout=Workspace();ImGui::SetNextWindowPos({layout.left.x,layout.left.y});ImGui::SetNextWindowSize({layout.left.w,layout.left.h});
+        ImGui::Begin("Studio##leftDock",nullptr,ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoScrollbar);
+        MaxUi::BrandHeader();float unit=ImGui::GetFrameHeight();
+        if(MaxUi::Button(camera.On()?"Stop camera":"Start camera")){if(camera.On())camera.Stop();else camera.Start();}ImGui::SameLine();if(MaxUi::Button("Setup")){preferenceSection=0;camera.Setup(appConfig->_appLocation);}ImGui::SameLine();menuHelp(style);
+        ImGui::TextColored(ImVec4(.55f,.73f,.95f,1),"%s",camera.On()?"Camera sending":"Camera off / see Camera preferences");
+        float reserve=(uiConfig->_audioExpanded?9.7f:6.3f)*unit;
+        float managerHeight=std::max(80.f,ImGui::GetContentRegionAvail().y-reserve);layerMan->DrawGUI(style,managerHeight);
+        ImGui::Separator();menuAudio(style);ImGui::Separator();menuPresets(style);
+        if(MaxUi::Button("Exit PNGTuber Max",{-1,0})){camera.Stop();appConfig->_menuWindow.close();appConfig->_window.close();}
+        ImGui::End();menuAdvanced(style);
+        
+        // Scene is rendered separately below; only the heading belongs to the editor.
+        auto* foreground=ImGui::GetForegroundDrawList();foreground->AddText({layout.canvas.x+12,22},IM_COL32(185,213,242,255),"LIVE AVATAR PREVIEW");
+        if(ImGui::IsMouseClicked(0)&&io.MousePos.x>layout.canvas.x&&io.MousePos.x<layout.canvas.x+layout.canvas.w&&io.MousePos.y>layout.canvas.y&&io.MousePos.y<layout.canvas.y+layout.canvas.h){ImGui::SetWindowFocus(nullptr);uiConfig->_advancedMenuShowing=false;}
+        ImGui::EndFrame();ImGui::SFML::Render(appConfig->_menuRT);uiConfig->_firstMenu=false;
+    }
 
 	void render()
 	{
-		auto dt = appConfig->_timer.restart();
+		camera.Poll();
+        auto dt = appConfig->_timer.restart();
 		appConfig->_fps = (1.0f / dt.asSeconds());
 
 		if (appConfig->_transparent)
@@ -2210,7 +1918,7 @@ public:
 
 		PhonemeMask phMask = SelectPhoneme();
 		layerMan->Draw(&appConfig->_layersRT, appConfig->_scrH, appConfig->_scrW, audioLevel, audioConfig->_midMax, phMask);
-        layerMan->DrawEditorGuides(&appConfig->_menuRT);
+        auto workspace=Workspace();sf::View guideView(sf::FloatRect(0,0,appConfig->_scrW,appConfig->_scrH));guideView.setViewport({workspace.fit.x/appConfig->_scrW,workspace.fit.y/appConfig->_scrH,workspace.fit.w/appConfig->_scrW,workspace.fit.h/appConfig->_scrH});appConfig->_menuRT.setView(guideView);layerMan->DrawEditorGuides(&appConfig->_menuRT);appConfig->_menuRT.setView(appConfig->_menuRT.getDefaultView());
 
 		if (layerMan && layerMan->IsEmptyAndIdle())
 		{
@@ -2231,7 +1939,7 @@ public:
 			LoadCustomFont();
 		}
 
-		if (uiConfig->_menuShowing)
+		if (true)
 		{
 			if (!appConfig->_isFullScreen)
 			{
@@ -2241,8 +1949,8 @@ public:
 					appConfig->_menuRT.draw(uiConfig->_outlineBox);
 				}
 
-				appConfig->_menuRT.draw(uiConfig->_topLeftBox);
-				appConfig->_menuRT.draw(uiConfig->_bottomRightBox);
+				
+				
 			}
 			menu();
 		}
@@ -2315,12 +2023,12 @@ public:
 
 		if (uiConfig->_cornerGrabbed.first)
 		{
-			appConfig->_menuRT.draw(uiConfig->_topLeftBox);
+			
 			appConfig->_menuRT.draw(uiConfig->_resizeBox);
 		}
 		else if (uiConfig->_cornerGrabbed.second)
 		{
-			appConfig->_menuRT.draw(uiConfig->_bottomRightBox);
+			
 			appConfig->_menuRT.draw(uiConfig->_resizeBox);
 		}
 
@@ -2333,7 +2041,8 @@ public:
 				logToFile(appConfig, "Failed to save image to " + appConfig->_appLocation + "debugOut/frame" + frameNoStr + "_1_layersRTRaw.png");
 #endif
 
-		appConfig->_RTPlane.setTexture(&appConfig->_layersRT.getTexture(), true);
+		appConfig->_window.clear(sf::Color(9,15,26));auto frame=Workspace();sf::RectangleShape canvas({frame.canvas.w,frame.canvas.h});canvas.setPosition(frame.canvas.x,frame.canvas.y);canvas.setFillColor(sf::Color(17,28,46));appConfig->_window.draw(canvas);
+        appConfig->_RTPlane.setTexture(&appConfig->_layersRT.getTexture(), true);appConfig->_RTPlane.setPosition(frame.fit.x,frame.fit.y);appConfig->_RTPlane.setSize({frame.fit.w,frame.fit.h});
 		sf::RenderStates states = sf::RenderStates::Default;
 
 		if (appConfig->_compositeOntoBackground && !appConfig->_transparent)
@@ -2792,6 +2501,7 @@ public:
 		sf::Event evt;
 		while (appConfig->_window.isOpen() && appConfig->_window.pollEvent(evt))
 		{
+            if (evt.type == sf::Event::Resized && (evt.size.width == 0 || evt.size.height == 0)) continue;
 			if (evt.type == evt.KeyPressed || evt.type == evt.MouseButtonPressed)
 			{
 				appConfig->_window.requestFocus();
@@ -2837,7 +2547,7 @@ public:
 				//check if user clicked in the corners for window resize
 				if (GamePad::isMouseButtonPressed(sf::Mouse::Left) && !appConfig->_isFullScreen)
 				{
-					float cornerGrabSize = 20 * appConfig->mainWindowScaling;
+					float cornerGrabSize = 0;
 
 					auto pos = sf::Mouse::getPosition(appConfig->_window);
 					if (pos.x < cornerGrabSize && pos.y < cornerGrabSize)

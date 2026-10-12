@@ -1,4 +1,9 @@
 #include "file_browser_modal.h"
+#ifdef _WIN32
+#include <Windows.h>
+#include <commdlg.h>
+#pragma comment(lib,"Comdlg32.lib")
+#endif
 
 #include <limits>
 #include <imgui.h>
@@ -298,7 +303,27 @@ file_browser_modal::file_browser_modal(const char* title, bool* mergingPtr, bool
 }
 
 // Will return true if file selected.
-const bool file_browser_modal::render(const bool isVisible, std::string& outPath, bool saving) {
+const bool file_browser_modal::render(bool& isVisible, std::string& outPath, bool saving) {
+#ifdef _WIN32
+  { // Use Windows' own open/save dialogs. Native dialogs never change the app's working directory.
+  if(!isVisible){m_oldVisibility=false;return false;}
+  isVisible=false;m_oldVisibility=false;
+  wchar_t selected[32768]={};std::wstring title;
+  int length=MultiByteToWideChar(CP_UTF8,0,m_title,-1,nullptr,0);if(length>0){title.resize(length);MultiByteToWideChar(CP_UTF8,0,m_title,-1,title.data(),length);}
+  std::wstring filter=L"Supported files";filter.push_back(0);std::wstring patterns;
+  for(const auto& ext:_acceptedExt){if(!patterns.empty())patterns+=L";";patterns+=L"*"+std::wstring(ext.begin(),ext.end());}
+  filter+=patterns;filter.push_back(0);filter+=L"All files";filter.push_back(0);filter+=L"*.*";filter.push_back(0);filter.push_back(0);
+  std::wstring initial;std::error_code ec;
+  if(!m_chosenDir.empty()){auto dir=fs::is_directory(m_chosenDir,ec)?m_chosenDir:m_chosenDir.parent_path();initial=dir.wstring();}
+  if(saving&&!outPath.empty()){auto filename=fs::path(outPath).filename().wstring();wcsncpy_s(selected,filename.c_str(),_TRUNCATE);}
+  std::wstring extension=_acceptedExt.empty()?L"":std::wstring(_acceptedExt[0].begin()+1,_acceptedExt[0].end());
+  OPENFILENAMEW dialog={};dialog.lStructSize=sizeof dialog;dialog.hwndOwner=GetActiveWindow();dialog.lpstrTitle=title.c_str();dialog.lpstrFilter=filter.c_str();dialog.lpstrFile=selected;dialog.nMaxFile=32768;dialog.lpstrInitialDir=initial.empty()?nullptr:initial.c_str();dialog.lpstrDefExt=extension.c_str();dialog.Flags=OFN_EXPLORER|OFN_NOCHANGEDIR|OFN_PATHMUSTEXIST|(saving?OFN_OVERWRITEPROMPT:OFN_FILEMUSTEXIST);
+  bool picked=saving?GetSaveFileNameW(&dialog)!=FALSE:GetOpenFileNameW(&dialog)!=FALSE;
+  if(picked){fs::path chosen(selected);outPath=chosen.string();m_chosenDir=chosen.parent_path();return true;}
+  DWORD error=CommDlgExtendedError();if(error){std::wstring message=L"Windows could not open the file dialog. Error "+std::to_wstring(error);MessageBoxW(dialog.hwndOwner,message.c_str(),L"PNGTuber Max",MB_OK|MB_ICONERROR);}return false;
+  }
+#endif
+
   bool result = false;
 
   auto& style = ImGui::GetStyle();

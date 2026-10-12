@@ -5,6 +5,8 @@
 #include <string>
 #include <algorithm>
 #include <cstring>
+#include <fstream>
+#include <sstream>
 #ifdef _WIN32
 #include <Windows.h>
 #include <shellapi.h>
@@ -12,11 +14,16 @@
 class MaxCamera {
     bool on_=false;std::string status_="Camera output off";sf::RenderTexture output_;sf::Clock clock_;MaxCameraFrame::Cadence cadence_;
 #ifdef _WIN32
+    HANDLE setup_=nullptr;std::string resultPath_;
     HANDLE map_=nullptr,lock_=nullptr,owner_=nullptr;unsigned char* memory_=nullptr;
 #endif
 public:
     MaxCamera()=default;MaxCamera(const MaxCamera&)=delete;MaxCamera& operator=(const MaxCamera&)=delete;
-    ~MaxCamera(){Stop();}
+    ~MaxCamera(){Stop();
+#ifdef _WIN32
+if(setup_)CloseHandle(setup_);
+#endif
+}
     bool On() const {return on_;}const std::string& Status() const{return status_;}
     bool Installed() const {
 #ifdef _WIN32
@@ -25,14 +32,25 @@ public:
         return false;
 #endif
     }
+    void Poll() {
+#ifdef _WIN32
+        if(setup_&&WaitForSingleObject(setup_,0)==WAIT_OBJECT_0){DWORD code=0;GetExitCodeProcess(setup_,&code);CloseHandle(setup_);setup_=nullptr;std::ifstream result(resultPath_);std::stringstream text;text<<result.rdbuf();status_=text.str().empty()?(code==0?"Camera setup completed":"Setup failed. Check camera-install-log.txt in Local AppData/Clatasha/PNGTuberMax"):text.str();}
+#endif
+    }
     void Setup(const std::string& directory) {
 #ifdef _WIN32
-        if(Installed()){status_="PNGTuber Max Camera is already installed";return;}
-        std::string parameters="-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File \""+directory+"Install-Camera.ps1\"";
-        auto result=ShellExecuteA(nullptr,"runas","powershell.exe",parameters.c_str(),directory.c_str(),SW_HIDE);
-        status_=reinterpret_cast<INT_PTR>(result)>32?"Camera installer opened; approve Windows once":"Camera setup canceled or unavailable";
+        if(setup_){status_="Camera setup is already running";return;}
+        char appData[MAX_PATH]={};GetEnvironmentVariableA("LOCALAPPDATA",appData,MAX_PATH);std::string parent=std::string(appData)+"\\Clatasha";CreateDirectoryA(parent.c_str(),nullptr);parent+="\\PNGTuberMax";CreateDirectoryA(parent.c_str(),nullptr);resultPath_=parent+"\\camera-setup-result.txt";DeleteFileA(resultPath_.c_str());
+        std::string parameters="-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File \""+directory+"Install-Camera.ps1\" -ResultPath \""+resultPath_+"\"";
+        SHELLEXECUTEINFOA launch={};launch.cbSize=sizeof launch;launch.fMask=SEE_MASK_NOCLOSEPROCESS;launch.lpVerb="runas";launch.lpFile="powershell.exe";launch.lpParameters=parameters.c_str();launch.lpDirectory=directory.c_str();launch.nShow=SW_HIDE;
+        if(ShellExecuteExA(&launch)){setup_=launch.hProcess;status_="Installing / repairing camera...";}else status_="Camera setup was canceled or could not open";
 #else
         status_="Virtual camera is supported on Windows in this preview";
+#endif
+    }
+    void Check(const std::string& directory){
+#ifdef _WIN32
+        if(!Installed()){status_="Install the camera before checking delivery";return;}if(!on_&&!Start())return;auto result=ShellExecuteA(nullptr,"open",(directory+"CameraDiagnostic.exe").c_str(),nullptr,directory.c_str(),SW_SHOW);if(reinterpret_cast<INT_PTR>(result)<=32)status_="Camera checker is missing. Extract the complete application folder.";
 #endif
     }
     bool Start() {

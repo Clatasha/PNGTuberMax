@@ -1,4 +1,4 @@
-PNGTUBER MAX by Clatasha — 0.1.1 DEVELOPMENT PREVIEW
+PNGTUBER MAX by Clatasha — 0.1.2 DEVELOPMENT PREVIEW
 
 Extract the complete folder and open PNGTuberMax.exe. Keep the resources and DLLs together.
 Requires Windows 10/11 x64 with .NET Framework 4.8. No OBS or another PNGTuber app is needed.
@@ -36,3 +36,18 @@ Receiving-app and Windows visual tests are required before using this preview fo
 Source: https://github.com/Clatasha/PNGTuberMax
 Original engine: https://github.com/ThomasR95/rahituber
 License notices are included in LICENSE.txt and notices/. Inter is licensed under SIL OFL.
+
+0.1.2 CHANGES
+The editor is split into left studio/layers, middle avatar preview, and right Preferences.
+Preferences remain visible; choose a settings section using the selector at the top.
+Imports/open/save use Windows file dialogs. Ctrl+Open merges into the current project.
+Below the microphone selector, six blocks continuously display the raw selected-input peak.
+Four green blocks, one amber, and one red cover quiet speech through levels near clipping.
+The meter stays visible when advanced audio controls are collapsed.
+Layer additions/duplicates are queued safely between UI frames; blank sprites cannot crash
+selection-guide drawing. Folder copying uses stable identifiers while the list grows.
+Camera setup repairs both Windows camera registrations, unblocks downloaded camera DLLs,
+and records warnings separately from errors. Its result appears in Camera Preferences.
+Use Check camera delivery to test registration and real DirectShow frame delivery.
+If setup or checking fails, send the error text from the panel or camera-report.txt /
+camera-install-log.txt in %LOCALAPPDATA%\Clatasha\PNGTuberMax.

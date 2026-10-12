@@ -11,6 +11,7 @@
 #include "ffwdClock.h"
 
 #include <memory>
+#include <atomic>
 #include <deque>
 #include <mutex>
 
@@ -191,6 +192,7 @@ paTestData;
 
 struct AudioConfig
 {
+	std::atomic<float> _inputPeak{0.f};
 	float _cutoff = 0.0006f;
 
 	SAMPLE _overallLevel = 0.f;

@@ -7,3 +7,6 @@ if (!(Test-Path $csc)) { throw '.NET Framework 4.8 compiler is required.' }
 & $csc /nologo /target:library /platform:anycpu "/out:$OutputDir\PNGTuberMax.Camera.dll" /reference:System.Drawing.dll "/reference:$PSScriptRoot\third_party\DirectShowLib.dll" "$PSScriptRoot\VirtualCamera.cs"
 if ($LASTEXITCODE -ne 0) { throw 'Camera compilation failed.' }
 Copy-Item "$PSScriptRoot\third_party\DirectShowLib.dll" $OutputDir -Force
+
+& $csc /nologo /target:winexe /platform:x64 "/out:$OutputDir\CameraDiagnostic.exe" /reference:System.Drawing.dll /reference:System.Windows.Forms.dll "/reference:$PSScriptRoot\third_party\DirectShowLib.dll" "$PSScriptRoot\CameraDiagnostic.cs"
+if ($LASTEXITCODE -ne 0) { throw 'Camera diagnostic compilation failed.' }

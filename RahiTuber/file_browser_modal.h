@@ -48,7 +48,7 @@ namespace imgui_ext {
 
     file_browser_modal(const char* title, bool* mergingPtr = nullptr, bool* portableFlag = nullptr, bool* optimiseFlag = nullptr);
 
-    const bool render(const bool isVisible, std::string& outPath, bool saving = false);
+    const bool render(bool& isVisible, std::string& outPath, bool saving = false);
 
     fs::path GetLastChosenDir() { return m_chosenDir; }
     void SetStartingDir(fs::path _newDir) { m_chosenDir = _newDir; }

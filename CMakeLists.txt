@@ -69,3 +69,6 @@ endif()
 
 add_executable(MaxCameraFrameTests tests/CameraFrameTests.cpp)
 target_compile_features(MaxCameraFrameTests PRIVATE cxx_std_17)
+
+add_executable(MaxWorkspaceTests tests/WorkspaceTests.cpp)
+target_compile_features(MaxWorkspaceTests PRIVATE cxx_std_17)

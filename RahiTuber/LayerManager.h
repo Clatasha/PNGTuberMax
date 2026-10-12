@@ -555,7 +555,9 @@ public:
 		sf::Clock _timer;
 	};
 
-	void DrawEditorGuides(sf::RenderTarget* target);
+	struct PendingLayer {std::string source;bool folder;int position;};
+    bool _drawingLayerUI=false;std::vector<PendingLayer> _pendingLayers;
+    void DrawEditorGuides(sf::RenderTarget* target);
 	void Draw(sf::RenderTarget* target, float windowHeight, float windowWidth, float talkLevel, float talkMax, PhonemeMask phMask = PH_NONE);
 
 	void DrawOldLayerSetUI();
