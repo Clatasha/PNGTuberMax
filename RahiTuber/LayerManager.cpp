@@ -600,7 +600,7 @@ void LayerManager::DrawOldLayerSetUI()
 
 		ImGui::TableNextColumn();
 
-		_saveXMLOpen = MaxUi::Button(_loadedXMLExists ? "Overwrite" : "Save", { uiScale * 80 , ImGui::GetFrameHeight() }) && !_loadedXMLRelPath.empty();
+		if(MaxUi::Button(_loadedXMLExists ? "Overwrite" : "Save", { uiScale * 80 , ImGui::GetFrameHeight() })){if(_loadedXMLRelPath.empty())_saveAsXMLOpen=true;else _saveXMLOpen=true;}
 		if (_saveXMLOpen)
 		{
 			_fullLoadedXMLPath = fs::absolute(_loadedXMLAbsDirectory).append(_layerSetName).replace_extension(".xml").string();
@@ -891,6 +891,7 @@ This works best when all your sprite images are located in a subfolder of RahiTu
 		folderSelect.SetStartingDir(_savingXMLPath = _fullLoadedXMLPath.empty()?fs::path(_appConfig->_appLocation).append(_layerSetName.empty()?"PNGTuberMax.xml":_layerSetName+".xml").string():_fullLoadedXMLPath);
 	if (_saveLayersPortable)
 		folderSelect.SetStartingDir(fs::path(_appConfig->_appLocation).append(_layerSetName + (_optimisePortable ? "_OPT.xml" : ".xml")).string());
+	bool choosingSave=_saveAsXMLOpen;
 	if (folderSelect.render(_saveAsXMLOpen, _savingXMLPath, true))
 	{
 		fs::path xmlPath = fs::absolute(_savingXMLPath);
@@ -923,6 +924,7 @@ This works best when all your sprite images are located in a subfolder of RahiTu
 		_optimisePortable = false;
 	}
 
+    else if(choosingSave&&!_saveAsXMLOpen){_saveLayersPortable=_copyImagesPortable=_optimisePortable=false;}
 	//////////////////////////////// RELOAD ///////////////////////////////////
 
 	if (ConfirmModal("Reload Layer Set", &_reloadXMLOpen, _reloadXMLOpen,
