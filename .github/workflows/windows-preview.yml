@@ -28,7 +28,17 @@ jobs:
       - name: Configure Windows x64
         run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 "-DCMAKE_POLICY_VERSION_MINIMUM=3.5" -DPNGMAX_TEST_OBS_CAPTURE=ON
       - name: Build app and frame test
-        run: cmake --build build --config Release --target RahiTuber MaxCameraFrameTests MaxWorkspaceTests MaxPlushMathTests MaxPlushRenderTests MaxEditorTests MaxPlushRasterTests MaxCameraNegotiationTests MaxObsCameraTests MaxRigTests MaxFaceBridgeTests MaxSurfaceRenderTests --parallel 4
+        run: cmake --build build --config Release --target RahiTuber MaxCameraFrameTests MaxWorkspaceTests MaxPlushMathTests MaxPlushRenderTests MaxEditorTests MaxPlushRasterTests MaxCameraNegotiationTests MaxObsCameraTests MaxRigTests MaxFaceBridgeTests MaxSurfaceRenderTests MaxFaceCropTests --parallel 4
+      - name: Software OpenGL for rendering tests only
+        shell: powershell
+        run: |
+          $url='https://github.com/pal1000/mesa-dist-win/releases/download/26.2.4/mesa3d-26.2.4-release-msvc.7z'
+          Invoke-WebRequest $url -OutFile build/mesa.7z
+          if ((Get-FileHash build/mesa.7z -Algorithm SHA256).Hash -ne '351fc8c8b695878ffb3eaa044b3ead08672a48b1a045e3c3e3975811df0f6695') { throw 'Test OpenGL download hash mismatch.' }
+          7z x build/mesa.7z -obuild/mesa -y -bso0 -bsp0
+          if ($LASTEXITCODE -ne 0) { throw 'Test OpenGL extraction failed.' }
+          Copy-Item build/mesa/x64/*.dll build/Release -Force
+          'GALLIUM_DRIVER=llvmpipe' | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
       - name: Test frame contract
         run: |
           .\build\Release\MaxCameraFrameTests.exe
@@ -39,6 +49,7 @@ jobs:
           .\build\Release\MaxPlushRasterTests.exe
           .\build\Release\MaxRigTests.exe
           .\build\Release\MaxSurfaceRenderTests.exe
+          .\build\Release\MaxFaceCropTests.exe
       - name: Package preview
         shell: powershell
         run: .\scripts\Package-Windows.ps1

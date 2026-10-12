@@ -124,3 +124,7 @@ endif()
 add_executable(MaxSurfaceRenderTests tests/SurfaceRenderTests.cpp)
 target_compile_features(MaxSurfaceRenderTests PRIVATE cxx_std_17)
 target_link_libraries(MaxSurfaceRenderTests PRIVATE sfml-graphics sfml-window sfml-system ${OPENGL_LIBRARY})
+
+add_executable(MaxFaceCropTests tests/FaceCropTests.cpp)
+target_compile_features(MaxFaceCropTests PRIVATE cxx_std_17)
+target_include_directories(MaxFaceCropTests PRIVATE ${CMAKE_SOURCE_DIR}/Libraries/SFML/include)
