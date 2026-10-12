@@ -1,4 +1,4 @@
-PNGTUBER MAX by Clatasha — 0.1.10 DEVELOPMENT PREVIEW
+PNGTUBER MAX by Clatasha — 0.1.11 DEVELOPMENT PREVIEW
 
 Extract the complete folder and open PNGTuberMax.exe. Keep the resources and DLLs together.
 Requires Windows 10/11 x64 with .NET Framework 4.8. No OBS or another PNGTuber app is needed.
@@ -129,3 +129,6 @@ Editable PNG bones, mesh deformation, rig-following accessories and live eye/mou
 
 0.1.10 CONTINUOUS SURFACE AND FACIAL CROP EDITOR
 Replaces per-row silhouette shaping with a connected PNG depth surface, GPU depth testing and supersampled edges. Thin antenna details receive shallow depth. Live eyes and mouth are composited into the front surface before turning and bending. Each feature has a large live crop editor, zoom/pan, independent crop width/height and rotation, three mask shapes, softness and brightness/gamma/colour adjustments. Placement and all settings save with the project. Requires the bundled tracker folder from 0.1.9; update both the application and tracker.py together.
+
+0.1.11 TRANSPARENCY AND CROP COPYING
+Transparency preserves normal window styles, title-bar direction and interactive mouse input. Disabling restores DWM margins and blur state. Each facial crop editor has Copy settings to and Copy settings at the bottom, copying all crop/mask/lighting settings while retaining destination avatar placement. PNG stitching is unchanged.

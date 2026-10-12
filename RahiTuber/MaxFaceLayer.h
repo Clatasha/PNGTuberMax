@@ -9,6 +9,7 @@ struct MaxFaceLayer {
  float brightness=0,contrast=1,gamma=1,saturation=1,warmth=0,softness=.12f;
  float height=.135f,rotation=0;int mask=0;
 };
+inline void MaxCopyFaceSettings(MaxFaceLayer& destination,const MaxFaceLayer& source){float height=destination.height,rotation=destination.rotation;destination=source;destination.height=height;destination.rotation=rotation;}
 inline std::vector<unsigned char> MaxFacePixels(const unsigned char* source,int sw,int sh,const MaxFaceLayer& config,int w=256,int h=192){
  std::vector<unsigned char> output(std::size_t(w)*h*4,0);float angle=config.cropRotation*.01745329252f,c=std::cos(angle),s=std::sin(angle);
  for(int y=0;y<h;++y)for(int x=0;x<w;++x){float u=(x+.5f)/w,v=(y+.5f)/h,px=(u-.5f)*config.cropWidth/std::max(.1f,config.zoom),py=(v-.5f)*config.cropHeight/std::max(.1f,config.zoom),sx=(c*px-s*py+.5f+config.panX)*sw-.5f,sy=(s*px+c*py+.5f+config.panY)*sh-.5f;

@@ -293,6 +293,7 @@ public:
     std::array<bool,3> _liveFaceEnabled{{false,false,false}};
     std::array<MaxRigPoint,3> _liveFacePosition{{{.38f,.3f},{.62f,.3f},{.5f,.45f}}};
     std::array<MaxFaceLayer,3> _liveFaceSettings=[]{std::array<MaxFaceLayer,3> settings;settings[2].height=.18f;return settings;}();std::array<std::shared_ptr<sf::RenderTexture>,3> _liveFacePreviews;
+    std::array<int,3> _liveFaceCopyTo{{1,0,0}};std::array<std::string,3> _liveFaceCopyNotice;
     std::array<float,3> _liveFaceWidth{{.18f,.18f,.24f}};
     bool _rigEnabled=false,_rigEditing=false; std::vector<MaxRigBone> _rigBones; MaxRigPose _rigTestPose; sf::Transform _rigWorld;
     bool _plushEnabled=false,_plushFollowMouse=false;

@@ -5902,7 +5902,11 @@ bool LayerManager::LayerInfo::DrawGUI(ImGuiStyle& style, int layerID)
                         ImGui::SliderFloat("Source zoom",&c.zoom,.25f,8);ImGui::SliderFloat("Source pan X",&c.panX,-.5f,.5f);ImGui::SliderFloat("Source pan Y",&c.panY,-.5f,.5f);ImGui::SliderFloat("Crop width",&c.cropWidth,.1f,2);ImGui::SliderFloat("Crop height",&c.cropHeight,.1f,2);ImGui::SliderFloat("Crop rotation",&c.cropRotation,-90,90);
                         const char* masks[]={"Ellipse","Rounded rectangle","Rectangle"};ImGui::Combo("Mask shape",&c.mask,masks,3);ImGui::SliderFloat("Edge softness",&c.softness,.002f,.4f);
                         ImGui::SliderFloat("Brightness",&c.brightness,-2,2,"%.2f stops");ImGui::SliderFloat("Gamma / shadows",&c.gamma,.3f,3);ImGui::SliderFloat("Contrast",&c.contrast,.5f,2);ImGui::SliderFloat("Saturation",&c.saturation,0,2);ImGui::SliderFloat("Warmth",&c.warmth,-.3f,.3f);
-                        if(ImGui::Button("Reset crop and lighting")){float height=c.height,rotation=c.rotation;c=MaxFaceLayer{};c.height=height;c.rotation=rotation;}ImGui::SameLine();if(ImGui::Button("Done"))ImGui::CloseCurrentPopup();ImGui::EndPopup();
+                        if(ImGui::Button("Reset crop and lighting")){float height=c.height,rotation=c.rotation;c=MaxFaceLayer{};c.height=height;c.rotation=rotation;}ImGui::SameLine();if(ImGui::Button("Done"))ImGui::CloseCurrentPopup();
+                        ImGui::Separator();auto& destination=_liveFaceCopyTo[i];
+                        if(ImGui::BeginCombo("Copy settings to",names[destination])){for(int other=0;other<3;++other)if(other!=i&&ImGui::Selectable(names[other],destination==other))destination=other;ImGui::EndCombo();}
+                        if(ImGui::Button("Copy settings")){auto& target=_liveFaceSettings[destination];MaxCopyFaceSettings(target,c);_liveFaceCopyNotice[i]=std::string("Copied to ")+names[destination];}
+                        if(!_liveFaceCopyNotice[i].empty())ImGui::TextUnformatted(_liveFaceCopyNotice[i].c_str());ImGui::EndPopup();
                     }ImGui::PopID();}
                 }
                 if(LesserCollapsingHeader("PNG bone rig")){

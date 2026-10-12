@@ -128,3 +128,8 @@ target_link_libraries(MaxSurfaceRenderTests PRIVATE sfml-graphics sfml-window sf
 add_executable(MaxFaceCropTests tests/FaceCropTests.cpp)
 target_compile_features(MaxFaceCropTests PRIVATE cxx_std_17)
 target_include_directories(MaxFaceCropTests PRIVATE ${CMAKE_SOURCE_DIR}/Libraries/SFML/include)
+
+if(WIN32)
+ add_executable(MaxWindowTransparencyTests tests/WindowTransparencyTests.cpp)
+ target_link_libraries(MaxWindowTransparencyTests PRIVATE dwmapi user32 gdi32)
+endif()
