@@ -9,7 +9,9 @@ def cutout(frame, points, indices):
     pts = np.array([points[i] for i in indices], dtype=np.float32)
     lo, hi = pts.min(axis=0), pts.max(axis=0)
     center = (lo + hi) / 2
-    w, h = max(12., float(hi[0]-lo[0])*1.7), max(8., float(hi[1]-lo[1])*2.1)
+    w = max(12., float(hi[0]-lo[0])*1.7)
+    # Keep the crop aspect stable so a blink or opening mouth is not resized away.
+    h = w * .75
     src = np.array([[center[0]-w/2, center[1]-h/2], [center[0]+w/2, center[1]-h/2], [center[0]-w/2, center[1]+h/2]], np.float32)
     dst = np.array([[0,0],[128,0],[0,96]], np.float32)
     transform = cv2.getAffineTransform(src,dst)
