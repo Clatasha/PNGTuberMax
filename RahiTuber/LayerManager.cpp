@@ -5795,15 +5795,50 @@ bool LayerManager::LayerInfo::DrawGUI(ImGuiStyle& style, int layerID)
 			{
 				_parent->_hoveredLayers.push_back(_id);
 
-                float animBtnWidth=UIUnit;
-                float imgBtnWidth=std::max(40.f,std::min(UIUnit*4,ImGui::GetContentRegionAvail().x-animBtnWidth*2-style.ItemSpacing.x*3));
-                float smlImageBtnWidth=imgBtnWidth;
-                SpriteSelectGUI(SP_IDLE,imgBtnWidth,animBtnWidth,btnColor,uiScale);
-                ImGui::Separator();ImGui::Checkbox("Talking enabled",&_swapWhenTalking);
-                if(_swapWhenTalking)SpriteSelectGUI(SP_TALK,imgBtnWidth,animBtnWidth,btnColor,uiScale);
-                ImGui::Separator();ImGui::Checkbox("Blinking enabled",&_useBlinkFrame);
-                if(_useBlinkFrame){SpriteSelectGUI(SP_BLINK,imgBtnWidth,animBtnWidth,btnColor,uiScale);ImGui::Checkbox("Blink while talking",&_blinkWhileTalking);if(_blinkWhileTalking&&_swapWhenTalking)SpriteSelectGUI(SP_TALKBLINK,imgBtnWidth,animBtnWidth,btnColor,uiScale);}
-                ImGui::Separator();ImGui::Checkbox("Restart when shown",&_restartAnimsOnVisible);
+				float imgBtnWidth = UIUnit * 6 - 2;
+				float smlImageBtnWidth = UIUnit * 3.5 - 2;
+				float animBtnWidth = UIUnit;
+				float checkboxPos;
+
+				if (ImGui::BeginTable("imagebuttons", 3, ImGuiTableFlags_SizingFixedSame))
+				{
+					ImGui::TableNextColumn();
+
+					ImGui::AlignTextToFramePadding();
+					SpriteSelectGUI(SP_IDLE, imgBtnWidth, animBtnWidth, btnColor, uiScale);
+
+					checkboxPos = ImGui::GetCursorPosY();
+
+					ImGui::TableNextColumn();
+
+					if (_swapWhenTalking)
+					{
+						ImGui::AlignTextToFramePadding();
+						SpriteSelectGUI(SP_TALK, imgBtnWidth, animBtnWidth, btnColor, uiScale);
+					}
+
+					ImGui::TableNextColumn();
+
+					if (_useBlinkFrame)
+					{
+						float blinkBtnSize = _blinkWhileTalking ? smlImageBtnWidth : imgBtnWidth;
+
+						ImGui::AlignTextToFramePadding();
+						ImGui::Text("Blink");
+						SpriteSelectGUI(SP_BLINK, blinkBtnSize, animBtnWidth, btnColor, uiScale, true);
+
+						if (_blinkWhileTalking)
+						{
+							SpriteSelectGUI(SP_TALKBLINK, blinkBtnSize, animBtnWidth, btnColor, uiScale, true);
+							checkboxPos = ImGui::GetCursorPosY() - ImGui::GetFrameHeightWithSpacing();
+						}
+					}
+
+					ImGui::EndTable();
+				}
+
+				ImGui::Checkbox("Restart anims on becoming visible", &_restartAnimsOnVisible);
+				ToolTip("Restarts all this layer's sprite-sheets whenever\nthis layer is made visible", &_parent->_appConfig->_hoverTimer);
 
                 if (LesserCollapsingHeader("Plush PNG mode...")) {
                     if(ImGui::Checkbox("Join front and back PNGs",&_plushEnabled))_parent->_activePlushLayer=_id;
@@ -5942,9 +5977,51 @@ bool LayerManager::LayerInfo::DrawGUI(ImGuiStyle& style, int layerID)
 					ImGui::Checkbox("Separate Tints", &_separatePhonemeTints);
 					ToolTip("Define separate tint colours for each phoneme", &_parent->_appConfig->_hoverTimer);
 
-					if (_usePhonemes) {
-                        for(auto type:{SP_PH_A,SP_PH_E,SP_PH_S,SP_PH_P,SP_PH_W})SpriteSelectGUI(type,smlImageBtnWidth,animBtnWidth,btnColor,uiScale,false,!_separatePhonemeTints);
-                    }
+					if (_usePhonemes)
+					{
+						if(ImGui::BeginTable((_id + "ph_tab_1").c_str(), 5, ImGuiTableFlags_SizingStretchProp))
+						{
+							ImGui::TableSetupColumn("##padL", ImGuiTableColumnFlags_WidthStretch);
+							ImGui::TableSetupColumn("##1", ImGuiTableColumnFlags_WidthFixed, UIUnit * 6);
+							ImGui::TableSetupColumn("##2", ImGuiTableColumnFlags_WidthFixed, UIUnit * 6);
+							ImGui::TableSetupColumn("##3", ImGuiTableColumnFlags_WidthFixed, UIUnit * 6);
+							ImGui::TableSetupColumn("##padR", ImGuiTableColumnFlags_WidthStretch);
+
+							ImGui::TableNextColumn();
+							ImGui::TableNextColumn();
+							// A vowel
+							SpriteSelectGUI(SP_PH_A, smlImageBtnWidth, animBtnWidth, btnColor, uiScale, false, !_separatePhonemeTints);
+
+							ImGui::TableNextColumn();
+							// E vowel
+							SpriteSelectGUI(SP_PH_E, smlImageBtnWidth, animBtnWidth, btnColor, uiScale, false, !_separatePhonemeTints);
+
+							ImGui::TableNextColumn();
+							// S sibilance
+							SpriteSelectGUI(SP_PH_S, smlImageBtnWidth, animBtnWidth, btnColor, uiScale, false, !_separatePhonemeTints);
+
+							ImGui::EndTable();
+						}
+
+						if(ImGui::BeginTable((_id + "ph_tab_2").c_str(), 4, ImGuiTableFlags_SizingStretchProp))
+						{
+							ImGui::TableSetupColumn("##padL", ImGuiTableColumnFlags_WidthStretch);
+							ImGui::TableSetupColumn("##1", ImGuiTableColumnFlags_WidthFixed, UIUnit * 6);
+							ImGui::TableSetupColumn("##2", ImGuiTableColumnFlags_WidthFixed, UIUnit * 6);
+							ImGui::TableSetupColumn("##padR", ImGuiTableColumnFlags_WidthStretch);
+
+							ImGui::TableNextColumn();
+							ImGui::TableNextColumn();
+							// P/B plosive
+							SpriteSelectGUI(SP_PH_P, smlImageBtnWidth, animBtnWidth, btnColor, uiScale, false, !_separatePhonemeTints);
+
+							ImGui::TableNextColumn();
+							// P/B plosive
+							SpriteSelectGUI(SP_PH_W, smlImageBtnWidth, animBtnWidth, btnColor, uiScale, false, !_separatePhonemeTints);
+
+							ImGui::EndTable();
+						}
+					}
 
 					BetterUnindent(_id + "talk");
 				}
@@ -5962,9 +6039,51 @@ bool LayerManager::LayerInfo::DrawGUI(ImGuiStyle& style, int layerID)
 
 					SpriteSelectGUI(SP_SCREAM, imgBtnWidth, animBtnWidth, btnColor, uiScale);
 
-					if (_usePhonemes) {
-                        for(auto type:{SP_SC_PH_A,SP_SC_PH_E,SP_SC_PH_S,SP_SC_PH_P,SP_SC_PH_W})SpriteSelectGUI(type,smlImageBtnWidth,animBtnWidth,btnColor,uiScale,false,!_separatePhonemeTints);
-                    }
+					if (_usePhonemes)
+					{
+						if (ImGui::BeginTable((_id + "phsc_tab_1").c_str(), 5, ImGuiTableFlags_SizingStretchProp))
+						{
+							ImGui::TableSetupColumn("##padL", ImGuiTableColumnFlags_WidthStretch);
+							ImGui::TableSetupColumn("##1", ImGuiTableColumnFlags_WidthFixed, UIUnit * 6);
+							ImGui::TableSetupColumn("##2", ImGuiTableColumnFlags_WidthFixed, UIUnit * 6);
+							ImGui::TableSetupColumn("##3", ImGuiTableColumnFlags_WidthFixed, UIUnit * 6);
+							ImGui::TableSetupColumn("##padR", ImGuiTableColumnFlags_WidthStretch);
+
+							ImGui::TableNextColumn();
+							ImGui::TableNextColumn();
+							// A vowel
+							SpriteSelectGUI(SP_SC_PH_A, smlImageBtnWidth, animBtnWidth, btnColor, uiScale, false, !_separatePhonemeTints);
+
+							ImGui::TableNextColumn();
+							// E vowel
+							SpriteSelectGUI(SP_SC_PH_E, smlImageBtnWidth, animBtnWidth, btnColor, uiScale, false, !_separatePhonemeTints);
+
+							ImGui::TableNextColumn();
+							// S sibilance
+							SpriteSelectGUI(SP_SC_PH_S, smlImageBtnWidth, animBtnWidth, btnColor, uiScale, false, !_separatePhonemeTints);
+
+							ImGui::EndTable();
+						}
+
+						if (ImGui::BeginTable((_id + "phsc_tab_2").c_str(), 4, ImGuiTableFlags_SizingStretchProp))
+						{
+							ImGui::TableSetupColumn("##padL", ImGuiTableColumnFlags_WidthStretch);
+							ImGui::TableSetupColumn("##1", ImGuiTableColumnFlags_WidthFixed, UIUnit * 6);
+							ImGui::TableSetupColumn("##2", ImGuiTableColumnFlags_WidthFixed, UIUnit * 6);
+							ImGui::TableSetupColumn("##padR", ImGuiTableColumnFlags_WidthStretch);
+
+							ImGui::TableNextColumn();
+							ImGui::TableNextColumn();
+							// P/B plosive
+							SpriteSelectGUI(SP_SC_PH_P, smlImageBtnWidth, animBtnWidth, btnColor, uiScale, false, !_separatePhonemeTints);
+
+							ImGui::TableNextColumn();
+							// P/B plosive
+							SpriteSelectGUI(SP_SC_PH_W, smlImageBtnWidth, animBtnWidth, btnColor, uiScale, false, !_separatePhonemeTints);
+
+							ImGui::EndTable();
+						}
+					}
 
 					AddResetButton("screamThresh", _screamThreshold, 0.15f, _parent->_appConfig, &style, true, &barPos);
 					ImVec2 barPos = ImGui::GetCursorScreenPos();
@@ -6505,7 +6624,7 @@ bool LayerManager::LayerInfo::DrawGUI(ImGuiStyle& style, int layerID)
 
 					AddResetButton("pos", _pos, sf::Vector2f(0.0, 0.0), _parent->_appConfig, &style);
 					float pos[2] = { _pos.x, _pos.y };
-					ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - style.ItemSpacing.x * 30);
+					ImGui::SetNextItemWidth(std::max(220.f*uiScale,ImGui::GetContentRegionAvail().x-ImGui::CalcTextSize("Rotation").x-style.ItemInnerSpacing.x));
 					if (Float2SliderDrag("Position", pos, -1000.0, 1000.f, "%.0f px", 0, _parent->_uiConfig->_numberEditType))
 					{
 						_pos.x = pos[0];
@@ -6515,7 +6634,7 @@ bool LayerManager::LayerInfo::DrawGUI(ImGuiStyle& style, int layerID)
 					ToolTip("The position of this layer.", &_parent->_appConfig->_hoverTimer, true);
 
 					AddResetButton("rot", _rot, 0.0, _parent->_appConfig, &style);
-					ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - style.ItemSpacing.x * 30);
+					ImGui::SetNextItemWidth(std::max(220.f*uiScale,ImGui::GetContentRegionAvail().x-ImGui::CalcTextSize("Rotation").x-style.ItemInnerSpacing.x));
 					float rot = _rot;
 					if (FloatSliderDrag("Rotation", &rot, -180.f, 180.f, "%.1f deg", 0, _parent->_uiConfig->_numberEditType))
 						_rot = rot;
@@ -6523,7 +6642,7 @@ bool LayerManager::LayerInfo::DrawGUI(ImGuiStyle& style, int layerID)
 
 					AddResetButton("scale", _scale, sf::Vector2f(1.0, 1.0), _parent->_appConfig, &style);
 					float scale[2] = { _scale.x, _scale.y };
-					ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - style.ItemSpacing.x * 30);
+					ImGui::SetNextItemWidth(std::max(220.f*uiScale,ImGui::GetContentRegionAvail().x-ImGui::CalcTextSize("Rotation").x-style.ItemInnerSpacing.x));
 					if (Float2SliderDrag("Scale", scale, 0.0, 5.f, "%.2f", 0, _parent->_uiConfig->_numberEditType))
 					{
 						if (!_keepAspect)

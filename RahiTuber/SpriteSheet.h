@@ -7,6 +7,7 @@
 #include "imgui.h"
 #include "TextureManager.h"
 #include <thread>
+#include <cstdint>
 #include "MaxPlushMath.h"
 
 class SpriteSheet
@@ -158,6 +159,10 @@ private:
     sf::Image _plushImage;
     unsigned int _plushTextureHandle=0;
     sf::IntRect _plushFrame;
+    std::uint64_t _plushRevision=0,_projectedFrontRevision=0,_projectedBackRevision=0;
+    sf::Texture _projectedTexture;
+    float _projectedYaw=9999.f,_projectedRoundness=0;
+    int _projectedWidth=0,_projectedHeight=0;
 
 	sf::Sprite _sprite;
 

@@ -17,7 +17,7 @@ jobs:
       - name: Configure Windows x64
         run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
       - name: Build app and frame test
-        run: cmake --build build --config Release --target RahiTuber MaxCameraFrameTests MaxWorkspaceTests MaxPlushMathTests MaxPlushRenderTests MaxEditorTests --parallel 4
+        run: cmake --build build --config Release --target RahiTuber MaxCameraFrameTests MaxWorkspaceTests MaxPlushMathTests MaxPlushRenderTests MaxEditorTests MaxPlushRasterTests MaxCameraNegotiationTests --parallel 4
       - name: Test frame contract
         run: |
           .\build\Release\MaxCameraFrameTests.exe
@@ -25,6 +25,7 @@ jobs:
           .\build\Release\MaxPlushMathTests.exe
           .\build\Release\MaxPlushRenderTests.exe
           .\build\Release\MaxEditorTests.exe
+          .\build\Release\MaxPlushRasterTests.exe
       - name: Package preview
         shell: powershell
         run: .\scripts\Package-Windows.ps1
@@ -35,6 +36,8 @@ jobs:
           & .\dist\PNGTuberMax\Install-Camera.ps1 -Quiet -ResultPath $result
           Get-Content $result
           if ($LASTEXITCODE -ne 0) { throw 'Camera registration failed.' }
+          & .\build\Release\MaxCameraNegotiationTests.exe
+          if ($LASTEXITCODE -ne 0) { throw 'Native recorder negotiation failed.' }
           $test = Start-Process .\dist\PNGTuberMax\CameraDiagnostic.exe -ArgumentList '--ci --simulate' -Wait -PassThru
           Get-Content "$env:LOCALAPPDATA\Clatasha\PNGTuberMax\camera-report.txt"
           if (Test-Path "$env:LOCALAPPDATA\Clatasha\PNGTuberMax\camera-stream-log.txt") { Get-Content "$env:LOCALAPPDATA\Clatasha\PNGTuberMax\camera-stream-log.txt" }

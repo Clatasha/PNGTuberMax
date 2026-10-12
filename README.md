@@ -61,3 +61,10 @@ Alt-drag rotates the selected plush body in the preview. Facing-range clipping, 
 rear UVs and optional GPU mipmaps improve rotated PNG rendering. Sprite inputs stack in the
 studio panel with explicit blinking controls and scrolling. Save toolbar labels are clickable;
 new projects open Save As, shortcuts work, and successful saves show a receipt in the editor.
+
+### 0.1.5 editor space and continuous plush sampling
+Restores the original RahiTuber sprite and phoneme arrangements in a wider studio panel.
+Transform fields use the available width rather than a fixed large spacing deduction.
+Plush mode now samples the visible front/back surface per pixel, caches the result, removes
+source mipmap averaging and bypasses the preview FXAA pass. Its premultiplied colours are
+composited once. Sharpness tests cover detailed PNGs at small turn angles.

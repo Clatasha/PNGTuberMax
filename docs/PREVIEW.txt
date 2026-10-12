@@ -1,4 +1,4 @@
-PNGTUBER MAX by Clatasha — 0.1.4 DEVELOPMENT PREVIEW
+PNGTUBER MAX by Clatasha — 0.1.5 DEVELOPMENT PREVIEW
 
 Extract the complete folder and open PNGTuberMax.exe. Keep the resources and DLLs together.
 Requires Windows 10/11 x64 with .NET Framework 4.8. No OBS or another PNGTuber app is needed.
@@ -38,7 +38,7 @@ Source: https://github.com/Clatasha/PNGTuberMax
 Original engine: https://github.com/ThomasR95/rahituber
 License notices are included in LICENSE.txt and notices/. Inter is licensed under SIL OFL.
 
-0.1.4 CHANGES
+0.1.5 CHANGES
 The editor is split into left studio/layers, middle avatar preview, and right Preferences.
 Preferences remain visible; choose a settings section using the selector at the top.
 Imports/open/save use Windows file dialogs. Ctrl+Open merges into the current project.
@@ -53,7 +53,7 @@ Use Check camera delivery to test registration and real DirectShow frame deliver
 If setup or checking fails, send the error text from the panel or camera-report.txt /
 camera-install-log.txt in %LOCALAPPDATA%\Clatasha\PNGTuberMax.
 
-0.1.4 AUDIO AND PLUSH PNG MODE
+0.1.5 AUDIO AND PLUSH PNG MODE
 Missing audio never opens a modal or prevents editing. Choose an input, refresh, or use the
 inline Use system default button. Failed devices show an error beside the input controls.
 Device selection uses actual PortAudio IDs, and refresh closes the old stream safely.
@@ -69,7 +69,7 @@ This first version wraps the body surfaces. Eye/accessory layers retain existing
 curved surface attachment and face tracking remain planned. Fine contours and strong side
 turns need testing with your mascot artwork. Rendering uses a bounded sprite tessellation.
 
-0.1.4 ROTATION, EDITOR AND SAVE FIXES
+0.1.5 ROTATION, EDITOR AND SAVE FIXES
 Alt + left drag inside the avatar preview turns the most recently selected plush body.
 Click the body's layer header to select it; if none is selected, the first visible plush body
 is used. Release Alt/mouse or leave app focus to end the drag. Manual turning switches off
@@ -82,3 +82,14 @@ picker; TalkBlink appears when blinking while talking is enabled. The editor has
 for smaller windows; phoneme and audio options fit the left column.
 Toolbar buttons include both icon and label in one clickable area. Save opens Save As for an
 unnamed project. Ctrl+S saves; Ctrl+Shift+S opens Save As. A successful write shows Saved: name.
+
+0.1.5 EDITOR SPACE AND SHARP PLUSH SAMPLING
+The studio returns to the original RahiTuber sprite/phoneme layout with a 720-pixel default
+working width. The avatar preview takes the smaller middle column. Transform fields reserve
+only the actual label width, leaving room to see and edit X/Y values.
+Plush surfaces use continuous per-pixel inverse projection instead of triangle-strip texture
+interpolation. Output is cached at the body's rendered resolution. No source mipmaps are
+created, and the plush preview bypasses the extra FXAA blur pass. Premultiplied alpha is
+composited once in the plush preview, preserving translucent outline colours.
+The standard sprite renderer retains its existing appearance preferences. Tests cover detailed
+striped PNGs at 2 and 5 degrees, neutral-view detail/alpha, side seams and XML save/overwrite.

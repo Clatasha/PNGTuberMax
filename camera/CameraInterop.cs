@@ -39,4 +39,12 @@ public interface IEnumMediaTypes {
  [PreserveSig]int Next(int count,IntPtr mediaTypes,IntPtr fetched);
  [PreserveSig]int Skip(int count);[PreserveSig]int Reset();[PreserveSig]int Clone(out IEnumMediaTypes clone);
 }
+// Source-side output pointers are caller-owned CoTaskMem, not CLR LPStruct outputs.
+[ComVisible(true),Guid("C6E13340-30AC-11d0-A18C-00A0C9118956"),InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+public interface IAMStreamConfig {
+ [PreserveSig]int SetFormat(IntPtr mediaType);
+ [PreserveSig]int GetFormat(IntPtr mediaTypeOut);
+ [PreserveSig]int GetNumberOfCapabilities(out int count,out int size);
+ [PreserveSig]int GetStreamCaps(int index,IntPtr mediaTypeOut,IntPtr caps);
+}
 }

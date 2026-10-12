@@ -559,7 +559,7 @@ public:
 			ImGui::SetWindowSize({ 400 * appConfig->scalingFactor,-1 });
 
             ImGui::SeparatorText("PNGTuber Max by Clatasha");
-            ImGui::TextWrapped("PNGTuber Max 0.1.4 preview. Virtual camera output is integrated; plush PNG mode and face tracking are next.");
+            ImGui::TextWrapped("PNGTuber Max 0.1.5 preview. Virtual camera output is integrated; plush PNG mode and face tracking are next.");
             if (MaxUi::Button("PNGTuber Max releases", { -1, UIUnit }))
                 OsOpenInShell("https://github.com/Clatasha/PNGTuberMax/releases");
             ToolTip("Opens PNGTuber Max releases on GitHub.", &appConfig->_hoverTimer);
@@ -615,7 +615,7 @@ public:
             ImGui::TextWrapped("RahiTuber (c) 2018-%d Rahisaurus (Tom Rule)", year);
 			ImGui::PopStyleColor(2);
 
-			ImGui::TextWrapped("PNGTuber Max 0.1.4 preview / RahiTuber engine %.3f", appConfig->_versionNumber);
+			ImGui::TextWrapped("PNGTuber Max 0.1.5 preview / RahiTuber engine %.3f", appConfig->_versionNumber);
 
 			ImGui::Separator();
 			if (MaxUi::Button("OK", { -1,20 }))
@@ -1990,7 +1990,9 @@ public:
         appConfig->_RTPlane.setTexture(&appConfig->_layersRT.getTexture(), true);appConfig->_RTPlane.setPosition(frame.fit.x,frame.fit.y);appConfig->_RTPlane.setSize({frame.fit.w,frame.fit.h});
 		sf::RenderStates states = sf::RenderStates::Default;
 
-		if (appConfig->_compositeOntoBackground && !appConfig->_transparent)
+		bool plushPreview=layerMan->HasPlushBody();
+        if(plushPreview){states.blendMode=sf::BlendMode(sf::BlendMode::One,sf::BlendMode::OneMinusSrcAlpha,sf::BlendMode::Add,sf::BlendMode::One,sf::BlendMode::OneMinusSrcAlpha,sf::BlendMode::Add);}
+        else if (appConfig->_compositeOntoBackground && !appConfig->_transparent)
 		{
 			states.blendMode = sf::BlendMode(sf::BlendMode::SrcAlpha, sf::BlendMode::OneMinusSrcAlpha, sf::BlendMode::Add,
 				sf::BlendMode::One, sf::BlendMode::OneMinusSrcAlpha, sf::BlendMode::Add);
@@ -2005,7 +2007,7 @@ public:
 				sf::BlendMode::SrcAlpha, sf::BlendMode::OneMinusSrcAlpha, sf::BlendMode::Add);
 		}
 
-		_FXAAShader.setUniform("u_fxaaOn", (int)appConfig->_FXAA);
+		_FXAAShader.setUniform("u_fxaaOn", (int)(appConfig->_FXAA&&!plushPreview));
 		_FXAAShader.setUniform("u_texelStep", sf::Glsl::Vec2(1.0 / appConfig->_layersRT.getSize().x, 1.0 / appConfig->_layersRT.getSize().y));
 		states.shader = _FXAAShader.get();
 		appConfig->_window.draw(appConfig->_RTPlane, states);

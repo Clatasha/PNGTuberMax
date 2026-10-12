@@ -90,3 +90,11 @@ get_target_property(MAX_EDITOR_LIBRARIES RahiTuber LINK_LIBRARIES)
 target_include_directories(MaxEditorTests PRIVATE ${MAX_EDITOR_INCLUDES})
 target_compile_definitions(MaxEditorTests PRIVATE ${MAX_EDITOR_DEFINES})
 target_link_libraries(MaxEditorTests PRIVATE ${MAX_EDITOR_LIBRARIES})
+
+add_executable(MaxPlushRasterTests tests/PlushRasterTests.cpp)
+target_compile_features(MaxPlushRasterTests PRIVATE cxx_std_17)
+
+if(WIN32)
+ add_executable(MaxCameraNegotiationTests tests/CameraNegotiationTests.cpp)
+ target_link_libraries(MaxCameraNegotiationTests PRIVATE ole32 strmiids)
+endif()

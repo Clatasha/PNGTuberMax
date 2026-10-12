@@ -592,6 +592,7 @@ public:
 	LayerInfo::TrackingMotion* GetTrackingMotion() { return _globalTrackingMotion.get(); }
 
 
+	bool HasPlushBody() const {for(const auto& layer:_layers)if(layer._plushEnabled&&layer._visible&&!layer._isFolder)return true;return false;}
 	bool IsEmptyAndIdle()
 	{
 		return _loadingFinished == true && _layers.size() == 0;

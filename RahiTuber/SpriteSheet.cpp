@@ -1,5 +1,5 @@
 #include "SpriteSheet.h"
-#include "MaxPlushMesh.h"
+#include "MaxPlushRaster.h"
 
 bool SpriteSheet::PrepareDraw(bool forceVisible)
 {
@@ -51,17 +51,28 @@ bool SpriteSheet::PrepareDraw(bool forceVisible)
 void SpriteSheet::Draw(sf::RenderTarget* target,const sf::RenderStates& states){if(PrepareDraw())target->draw(_sprite,states);}
 const std::vector<MaxPlushSpan>& SpriteSheet::PlushContour(){
  auto rect=_sprite.getTextureRect();auto handle=_tex?_tex->getNativeHandle():0;
- if(handle!=_plushTextureHandle){_plushImage=_tex->copyToImage();if(_texSmooth&&_frameRects.size()<=1)_tex->generateMipmap();_plushTextureHandle=handle;_plushRows.clear();}
- if(_plushRows.empty()||rect!=_plushFrame){_plushFrame=rect;auto size=_plushImage.getSize();_plushRows=MaxPlushContour(_plushImage.getPixelsPtr(),size.x,size.y,rect.left,rect.top,rect.width,rect.height);}
+ if(handle!=_plushTextureHandle){_plushImage=_tex->copyToImage();_plushTextureHandle=handle;_plushRows.clear();}
+ if(_plushRows.empty()||rect!=_plushFrame){_plushFrame=rect;auto size=_plushImage.getSize();_plushRows=MaxPlushContour(_plushImage.getPixelsPtr(),size.x,size.y,rect.left,rect.top,rect.width,rect.height);++_plushRevision;}
  return _plushRows;
 }
 void SpriteSheet::DrawPlush(sf::RenderTarget* target,SpriteSheet& back,float roundness,float yaw,const sf::RenderStates& states){
  if(!PrepareDraw())return;if(!back.PrepareDraw(true)){target->draw(_sprite,states);return;}
- const auto& contour=PlushContour();const auto& rear=back.PlushContour();
- sf::RenderStates face=states;face.transform*=_sprite.getTransform();
- // Both halves use one contour, so their left and right seams coincide at every turn angle.
- face.texture=back._tex;auto rearMesh=MaxPlushMesh(contour,rear,back._sprite.getTextureRect(),roundness,yaw,true,_sprite.getColor());target->draw(rearMesh,face);
- face.texture=_tex;auto frontMesh=MaxPlushMesh(contour,contour,_sprite.getTextureRect(),roundness,yaw,false,_sprite.getColor());target->draw(frontMesh,face);
+ const auto& contour=PlushContour();const auto& rear=back.PlushContour();auto rect=_sprite.getTextureRect(),rearRect=back._sprite.getTextureRect();
+ sf::RenderStates face=states;face.transform*=_sprite.getTransform();float planeWidth=rect.width*std::max(1.f,roundness);
+ auto origin=face.transform.transformPoint(0,0),x=face.transform.transformPoint(1,0)-origin,y=face.transform.transformPoint(0,1)-origin;
+ auto view=target->getView().getSize();auto size=target->getSize();float sx=view.x>0?size.x/view.x:1,sy=view.y>0?size.y/view.y:1;
+ float dx=std::sqrt(x.x*x.x*sx*sx+x.y*x.y*sy*sy),dy=std::sqrt(y.x*y.x*sx*sx+y.y*y.y*sy*sy);
+ int width=std::clamp(int(std::ceil(planeWidth*dx/8))*8,32,1536),height=std::clamp(int(std::ceil(rect.height*dy/8))*8,32,1536);
+ if(width!=_projectedWidth||height!=_projectedHeight||yaw!=_projectedYaw||roundness!=_projectedRoundness||_plushRevision!=_projectedFrontRevision||back._plushRevision!=_projectedBackRevision){
+  auto fs=_plushImage.getSize(),bs=back._plushImage.getSize();
+  MaxPlushPixels front{_plushImage.getPixelsPtr(),int(fs.x),int(fs.y),rect.left,rect.top,rect.width,rect.height,&contour};
+  MaxPlushPixels rearImage{back._plushImage.getPixelsPtr(),int(bs.x),int(bs.y),rearRect.left,rearRect.top,rearRect.width,rearRect.height,&rear};
+  auto pixels=MaxPlushRaster(front,rearImage,roundness,yaw,width,height);if(pixels.empty()){target->draw(_sprite,states);return;}
+  sf::Image projected;projected.create(width,height,pixels.data());
+  if(_projectedTexture.getSize()!=sf::Vector2u(width,height)){if(!_projectedTexture.loadFromImage(projected)){target->draw(_sprite,states);return;}}else _projectedTexture.update(projected);
+  _projectedTexture.setSmooth(_texSmooth);_projectedWidth=width;_projectedHeight=height;_projectedYaw=yaw;_projectedRoundness=roundness;_projectedFrontRevision=_plushRevision;_projectedBackRevision=back._plushRevision;
+ }
+ sf::Sprite projected(_projectedTexture);projected.setPosition((rect.width-planeWidth)*.5f,0);projected.setScale(planeWidth/width,float(rect.height)/height);projected.setColor(_sprite.getColor());target->draw(projected,face);
 }
 
 void SpriteSheet::Tick()
