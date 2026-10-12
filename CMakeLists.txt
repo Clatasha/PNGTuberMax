@@ -133,3 +133,7 @@ if(WIN32)
  add_executable(MaxWindowTransparencyTests tests/WindowTransparencyTests.cpp)
  target_link_libraries(MaxWindowTransparencyTests PRIVATE dwmapi user32 gdi32)
 endif()
+
+add_executable(MaxPreciseFaceRenderTests tests/PreciseFaceRenderTests.cpp)
+target_compile_features(MaxPreciseFaceRenderTests PRIVATE cxx_std_17)
+target_link_libraries(MaxPreciseFaceRenderTests PRIVATE sfml-graphics sfml-window sfml-system)

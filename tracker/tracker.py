@@ -3,9 +3,21 @@ import argparse, ctypes, math, mmap, struct, time
 import cv2
 import mediapipe as mp
 import numpy as np
-SIZE = 64 + 3 * 256 * 192 * 4
+SIZE = 64 + 3 * 256 * 192 * 5
+# Ordered outer contours from MediaPipe FaceMesh connections (v0.10.21).
+CONTOURS = [[33,7,163,144,145,153,154,155,133,173,157,158,159,160,161,246],
+            [263,249,390,373,374,380,381,382,362,398,384,385,386,387,388,466],
+            [61,146,91,181,84,17,314,405,321,375,291,409,270,269,267,0,37,39,40,185]]
 
-def cutout(frame, points, indices):
+def distance_field(polygon):
+    mask=np.zeros((192,256),np.uint8)
+    # Subpixel polygon rasterisation avoids jumps at pixel boundaries.
+    cv2.fillPoly(mask,[np.rint(np.asarray(polygon)*16).astype(np.int32)],255,shift=4)
+    inside=cv2.distanceTransform(mask,cv2.DIST_L2,cv2.DIST_MASK_PRECISE)
+    outside=cv2.distanceTransform(255-mask,cv2.DIST_L2,cv2.DIST_MASK_PRECISE)
+    return np.rint((np.clip(inside-outside,-32,32)+32)*255/64).astype(np.uint8).tobytes()
+
+def cutout(frame, points, indices, contour=None, previous=None):
     pts = np.array([points[i] for i in indices], dtype=np.float32)
     lo, hi = pts.min(axis=0), pts.max(axis=0)
     center = (lo + hi) / 2
@@ -17,7 +29,13 @@ def cutout(frame, points, indices):
     transform = cv2.getAffineTransform(src,dst)
     rgb = cv2.cvtColor(cv2.warpAffine(frame,transform,(256,192)),cv2.COLOR_BGR2RGB)
     rgba = np.dstack((rgb,np.full((192,256),255,np.uint8)))
-    return rgba.tobytes()
+    if contour is None:return rgba.tobytes()
+    polygon=cv2.transform(np.asarray([points[i] for i in contour],np.float32)[None,:,:],transform)[0]
+    if previous is not None:
+        old_height=np.ptp(previous[:,1]);new_height=np.ptp(polygon[:,1])
+        # Respond immediately to blinks/open mouths; lightly smooth small boundary jitter.
+        if .65*old_height<new_height<1.5*old_height:polygon=.85*polygon+.15*previous
+    return rgba.tobytes(),distance_field(polygon),polygon
 
 def self_test():
     with mp.solutions.face_mesh.FaceMesh(static_image_mode=True,refine_landmarks=True,max_num_faces=1) as detector:
@@ -26,6 +44,13 @@ def self_test():
     crop=np.frombuffer(cutout(image,points,[0,1]),np.uint8).reshape(192,256,4)
     assert crop[96,128,3]==255 and crop[0,0,3]==255
     assert np.all(crop[:,:,:3]<=crop[:,:,3,None])
+    # A narrow eyelid band and an open mouth interior must remain distinct.
+    opened=np.frombuffer(distance_field([(60,96),(90,72),(166,72),(196,96),(166,120),(90,120)]),np.uint8).reshape(192,256)
+    closed=np.frombuffer(distance_field([(60,96),(90,94),(166,94),(196,96),(166,98),(90,98)]),np.uint8).reshape(192,256)
+    assert opened[96,128]>128 and opened[70,128]<128
+    assert closed[96,128]>128 and closed[80,128]<128
+    assert np.count_nonzero(closed>128)<np.count_nonzero(opened>128)/4
+    print('PASS: eyelid/open-mouth contours preserve expression and exclude surrounding skin')
     print('PASS: bundled face model loads; full-resolution source crops for the in-app mask editor')
 
 def run(args):
@@ -40,27 +65,30 @@ def run(args):
     if camera is not None:
         camera.set(cv2.CAP_PROP_FRAME_WIDTH,640);camera.set(cv2.CAP_PROP_FRAME_HEIGHT,480)
     sequence=0
-    def publish(status, pose=(0,0,0), crops=None):
+    def publish(status, pose=(0,0,0), crops=None, fields=None):
         nonlocal sequence
         sequence+=1
-        header=struct.pack('<IIIIfff',0x52494732,sequence,status,0,*pose).ljust(64,b'\0')
+        header=struct.pack('<IIIIfff',0x52494733,sequence,status,0,*pose).ljust(64,b'\0')
         if kernel.WaitForSingleObject(mutex,100) in (0,128):
             try:
                 memory.seek(0);memory.write(header[:28])
                 if crops:
                     memory.seek(64);memory.write(b''.join(crops))
+                    if fields:memory.write(b''.join(fields))
             finally: kernel.ReleaseMutex(mutex)
     def active():
         memory.seek(28)
         return memory.read(4)==b'\x01\0\0\0'
     if args.test_stream:
         pixels=bytes((35,70,100,128))*(256*192)
-        while active():publish(1,(12.,7.,-9.),[pixels]*3);time.sleep(1/30)
+        field=distance_field([(60,96),(90,72),(166,72),(196,96),(166,120),(90,120)])
+        while active():publish(1,(12.,7.,-9.),[pixels]*3,[field]*3);time.sleep(1/30)
         memory.close();kernel.CloseHandle(ctypes.c_void_p(mutex));return
     if not camera.isOpened():
         publish(3)
         while active():time.sleep(.1)
         camera.release();memory.close();kernel.CloseHandle(ctypes.c_void_p(mutex));return
+    previous=[None,None,None]
     try:
         with mp.solutions.face_mesh.FaceMesh(refine_landmarks=True,max_num_faces=1,min_detection_confidence=.5,min_tracking_confidence=.5) as face:
             while True:
@@ -70,7 +98,7 @@ def run(args):
                 good,frame=camera.read()
                 if not good:publish(3);time.sleep(.1);continue
                 result=face.process(cv2.cvtColor(frame,cv2.COLOR_BGR2RGB))
-                if not result.multi_face_landmarks:publish(2);continue
+                if not result.multi_face_landmarks:previous=[None,None,None];publish(2);continue
                 landmarks=result.multi_face_landmarks[0].landmark
                 points=[(p.x*frame.shape[1],p.y*frame.shape[0]) for p in landmarks]
                 # Six stable face landmarks with a generic face model give head rotation.
@@ -84,8 +112,12 @@ def run(args):
                     pitch=((angles[0]+180)%360)-180
                     if abs(pitch)>90:pitch=(180-abs(pitch))*(-1 if pitch<0 else 1)
                     pose=(float(np.clip(-angles[2],-45,45)),float(np.clip(pitch,-45,45)),float(np.clip(angles[1],-60,60)))
-                crops=[cutout(frame,points,[33,133,159,145]),cutout(frame,points,[263,362,386,374]),cutout(frame,points,[61,291,0,17])]
-                publish(1,pose,crops)
+                regions=[[33,133,159,145],[263,362,386,374],[61,291,0,17]]
+                crops=[];fields=[]
+                for i in range(3):
+                    image,field,polygon=cutout(frame,points,regions[i],CONTOURS[i],previous[i])
+                    crops.append(image);fields.append(field);previous[i]=polygon
+                publish(1,pose,crops,fields)
     finally:
         camera.release();memory.close();kernel.CloseHandle(ctypes.c_void_p(mutex))
 

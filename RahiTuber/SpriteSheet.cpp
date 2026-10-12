@@ -55,7 +55,7 @@ bool SpriteSheet::ComposeFace(){
  if(faceOverlays.empty())return false;auto rect=_sprite.getTextureRect();if(rect.width<=0||rect.height<=0)return false;
  if(_faceComposite.getSize()!=sf::Vector2u(rect.width,rect.height)&&!_faceComposite.create(rect.width,rect.height))return false;
  _faceComposite.clear(sf::Color::Transparent);sf::Sprite body(*_tex,rect);sf::RenderStates state;state.blendMode=sf::BlendMode(sf::BlendMode::One,sf::BlendMode::OneMinusSrcAlpha);_faceComposite.draw(body,state);
- for(auto& layer:faceOverlays)if(layer.texture)MaxFaceDraw(_faceComposite,*layer.texture,layer.settings,{layer.x*rect.width,layer.y*rect.height,layer.width*rect.width,layer.settings.height*rect.height},true);
+ for(auto& layer:faceOverlays)if(layer.texture)MaxFaceDraw(_faceComposite,*layer.texture,layer.settings,{layer.x*rect.width,layer.y*rect.height,layer.width*rect.width,layer.settings.height*rect.height},true,layer.contour);
  _faceComposite.display();_faceComposite.setSmooth(_texSmooth);return true;
 }
 void SpriteSheet::Draw(sf::RenderTarget* target,const sf::RenderStates& states){if(!PrepareDraw())return;if(!ComposeFace()){DrawSurface(target,_sprite,states);return;}sf::Sprite composed(_faceComposite.getTexture());composed.setColor(_sprite.getColor());auto face=states;face.transform*=_sprite.getTransform();DrawSurface(target,composed,face);}
