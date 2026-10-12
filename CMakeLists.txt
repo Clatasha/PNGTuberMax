@@ -120,3 +120,7 @@ if(WIN32)
  target_compile_features(MaxFaceBridgeTests PRIVATE cxx_std_17)
  target_link_libraries(MaxFaceBridgeTests PRIVATE sfml-graphics sfml-window sfml-system ole32 oleaut32 strmiids)
 endif()
+
+add_executable(MaxSurfaceRenderTests tests/SurfaceRenderTests.cpp)
+target_compile_features(MaxSurfaceRenderTests PRIVATE cxx_std_17)
+target_link_libraries(MaxSurfaceRenderTests PRIVATE sfml-graphics sfml-window sfml-system ${OPENGL_LIBRARY})

@@ -3,33 +3,30 @@ import argparse, ctypes, math, mmap, struct, time
 import cv2
 import mediapipe as mp
 import numpy as np
-SIZE = 64 + 3 * 128 * 96 * 4
+SIZE = 64 + 3 * 256 * 192 * 4
 
 def cutout(frame, points, indices):
     pts = np.array([points[i] for i in indices], dtype=np.float32)
     lo, hi = pts.min(axis=0), pts.max(axis=0)
     center = (lo + hi) / 2
-    w = max(12., float(hi[0]-lo[0])*1.7)
+    w = max(12., float(hi[0]-lo[0])*3.4)
     # Keep the crop aspect stable so a blink or opening mouth is not resized away.
     h = w * .75
     src = np.array([[center[0]-w/2, center[1]-h/2], [center[0]+w/2, center[1]-h/2], [center[0]-w/2, center[1]+h/2]], np.float32)
-    dst = np.array([[0,0],[128,0],[0,96]], np.float32)
+    dst = np.array([[0,0],[256,0],[0,192]], np.float32)
     transform = cv2.getAffineTransform(src,dst)
-    rgb = cv2.cvtColor(cv2.warpAffine(frame,transform,(128,96)),cv2.COLOR_BGR2RGB)
-    mask = np.zeros((96,128), np.uint8)
-    cv2.ellipse(mask,(64,48),(58,40),0,0,360,255,-1)
-    mask = cv2.GaussianBlur(mask,(15,15),3)
-    rgba = np.dstack(((rgb.astype(np.float32)*(mask[:,:,None]/255)).astype(np.uint8),mask))
+    rgb = cv2.cvtColor(cv2.warpAffine(frame,transform,(256,192)),cv2.COLOR_BGR2RGB)
+    rgba = np.dstack((rgb,np.full((192,256),255,np.uint8)))
     return rgba.tobytes()
 
 def self_test():
     with mp.solutions.face_mesh.FaceMesh(static_image_mode=True,refine_landmarks=True,max_num_faces=1) as detector:
         assert not detector.process(np.zeros((128,128,3),np.uint8)).multi_face_landmarks
     image=np.full((128,128,3),200,np.uint8); points=[(40,50),(80,70)]
-    crop=np.frombuffer(cutout(image,points,[0,1]),np.uint8).reshape(96,128,4)
-    assert crop[48,64,3]==255 and crop[0,0,3]<10
+    crop=np.frombuffer(cutout(image,points,[0,1]),np.uint8).reshape(192,256,4)
+    assert crop[96,128,3]==255 and crop[0,0,3]==255
     assert np.all(crop[:,:,:3]<=crop[:,:,3,None])
-    print('PASS: bundled face model loads; transparent premultiplied cutouts')
+    print('PASS: bundled face model loads; full-resolution source crops for the in-app mask editor')
 
 def run(args):
     kernel=ctypes.WinDLL('kernel32',use_last_error=True)
@@ -46,7 +43,7 @@ def run(args):
     def publish(status, pose=(0,0,0), crops=None):
         nonlocal sequence
         sequence+=1
-        header=struct.pack('<IIIIfff',0x52494731,sequence,status,0,*pose).ljust(64,b'\0')
+        header=struct.pack('<IIIIfff',0x52494732,sequence,status,0,*pose).ljust(64,b'\0')
         if kernel.WaitForSingleObject(mutex,100) in (0,128):
             try:
                 memory.seek(0);memory.write(header[:28])
@@ -57,7 +54,7 @@ def run(args):
         memory.seek(28)
         return memory.read(4)==b'\x01\0\0\0'
     if args.test_stream:
-        pixels=bytes((35,70,100,128))*(128*96)
+        pixels=bytes((35,70,100,128))*(256*192)
         while active():publish(1,(12.,7.,-9.),[pixels]*3);time.sleep(1/30)
         memory.close();kernel.CloseHandle(ctypes.c_void_p(mutex));return
     if not camera.isOpened():

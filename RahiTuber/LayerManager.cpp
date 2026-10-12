@@ -78,19 +78,14 @@ void LayerManager::LayerInfo::DrawSprites(sf::RenderTarget* target,const sf::Ren
     if(_activeSprite)_rigWorld=states.transform*_activeSprite->getTransform();
     MaxRigPose pose=_rigTestPose;pose.lean+=_parent->_webcamPose.lean;pose.nod+=_parent->_webcamPose.nod;pose.turn+=_parent->_webcamPose.turn;
     if(_rigEditing)pose={};
-    for(auto& entry:_sprites){entry.second->rigBones=_rigEnabled?&_rigBones:nullptr;entry.second->rigPose=pose;}
+    for(auto& entry:_sprites){entry.second->surfaceFlatness=_plushFlatness;entry.second->faceOverlays.clear();if(_parent->_faceTracker.available)for(int i=0;i<3;++i)if(_liveFaceEnabled[i])entry.second->faceOverlays.push_back({&_parent->_faceTracker.textures[i],_liveFaceSettings[i],_liveFacePosition[i].x,_liveFacePosition[i].y,_liveFaceWidth[i]});entry.second->rigBones=_rigEnabled?&_rigBones:nullptr;entry.second->rigPose=pose;}
     float turn=_plushYaw+(_rigEnabled&&!_rigEditing?_parent->_webcamPose.turn:0);
     if(_plushFollowMouse){auto size=_parent->_appConfig->_window.getSize();auto mouse=sf::Mouse::getPosition(_parent->_appConfig->_window);if(size.x)turn+=std::clamp(2.f*mouse.x/size.x-1.f,-1.f,1.f)*_plushMouseRange;}
     float elapsed=std::min(.1f,_plushTurnClock.restart().asSeconds());_plushRenderedYaw+=(turn-_plushRenderedYaw)*(1.f-std::exp(-elapsed*12.f));
     auto back=_sprites.find(SP_PLUSH_BACK);
     bool plush=_plushEnabled&&back!=_sprites.end()&&back->second->HasTexture();
     for(auto& sprite:_sprites){if(sprite.first==SP_PLUSH_BACK)continue;if(plush)sprite.second->DrawPlush(target,*back->second,_plushRoundness,_plushRenderedYaw,states);else sprite.second->Draw(target,states);}
-    if(_activeSprite&&_parent->_faceTracker.available&&(!_plushEnabled||std::abs(_plushRenderedYaw)<75)){
-        auto size=_activeSprite->Size();sf::RenderStates face=states;face.transform*=_activeSprite->getTransform();face.shader=nullptr;face.blendMode=sf::BlendMode(sf::BlendMode::One,sf::BlendMode::OneMinusSrcAlpha);
-        // Textures already contain premultiplied alpha, matching PNG rendering.
-        for(int i=0;i<3;++i)if(_liveFaceEnabled[i]){auto p=MaxRigWarp(_liveFacePosition[i],_rigEnabled?_rigBones:std::vector<MaxRigBone>{},pose);
-            sf::Sprite cutout(_parent->_faceTracker.textures[i]);float width=size.x*_liveFaceWidth[i];cutout.setOrigin(64,48);cutout.setPosition(p.x*size.x,p.y*size.y);cutout.setScale(width/128,width/128);target->draw(cutout,face);}
-    }
+
 
 }
 
@@ -2375,11 +2370,11 @@ bool LayerManager::SaveLayers(const std::string& settingsFileName, bool makePort
 		{
 			thisLayer->SetAttribute("rigEnabled",layer._rigEnabled);
             thisLayer->SetAttribute("rigAttachLayer",layer._rigAttachLayer.c_str());
-            auto features=thisLayer->InsertNewChildElement("LiveFaceLayers");for(int i=0;i<3;++i){auto f=features->InsertNewChildElement("Feature");f->SetAttribute("index",i);f->SetAttribute("enabled",layer._liveFaceEnabled[i]);f->SetAttribute("x",layer._liveFacePosition[i].x);f->SetAttribute("y",layer._liveFacePosition[i].y);f->SetAttribute("width",layer._liveFaceWidth[i]);}
+            auto features=thisLayer->InsertNewChildElement("LiveFaceLayers");for(int i=0;i<3;++i){auto f=features->InsertNewChildElement("Feature");f->SetAttribute("index",i);f->SetAttribute("enabled",layer._liveFaceEnabled[i]);f->SetAttribute("x",layer._liveFacePosition[i].x);f->SetAttribute("y",layer._liveFacePosition[i].y);f->SetAttribute("width",layer._liveFaceWidth[i]);auto& c=layer._liveFaceSettings[i];f->SetAttribute("zoom",c.zoom);f->SetAttribute("panX",c.panX);f->SetAttribute("panY",c.panY);f->SetAttribute("cropWidth",c.cropWidth);f->SetAttribute("cropHeight",c.cropHeight);f->SetAttribute("cropRotation",c.cropRotation);f->SetAttribute("brightness",c.brightness);f->SetAttribute("contrast",c.contrast);f->SetAttribute("gamma",c.gamma);f->SetAttribute("saturation",c.saturation);f->SetAttribute("warmth",c.warmth);f->SetAttribute("softness",c.softness);f->SetAttribute("height",c.height);f->SetAttribute("rotation",c.rotation);f->SetAttribute("mask",c.mask);}
 
             auto rig=thisLayer->InsertNewChildElement("PngRig");for(auto& b:layer._rigBones){auto bone=rig->InsertNewChildElement("Bone");bone->SetAttribute("sx",b.start.x);bone->SetAttribute("sy",b.start.y);bone->SetAttribute("ex",b.end.x);bone->SetAttribute("ey",b.end.y);bone->SetAttribute("radius",b.radius);bone->SetAttribute("strength",b.strength);bone->SetAttribute("role",b.role);}
             thisLayer->SetAttribute("plushEnabled",layer._plushEnabled);
-            thisLayer->SetAttribute("plushRoundness",layer._plushRoundness);
+            thisLayer->SetAttribute("plushRoundness",layer._plushRoundness);thisLayer->SetAttribute("plushFlatness",layer._plushFlatness);
             thisLayer->SetAttribute("plushYaw",layer._plushYaw);
             thisLayer->SetAttribute("plushFollowMouse",layer._plushFollowMouse);
             thisLayer->SetAttribute("plushMouseRange",layer._plushMouseRange);
@@ -3079,11 +3074,11 @@ bool LayerManager::LoadLayers(const std::string& settingsFileName)
 
 				thisLayer->QueryAttribute("rigEnabled",&layer._rigEnabled);
                 if(auto id=thisLayer->Attribute("rigAttachLayer"))layer._rigAttachLayer=id;
-                if(auto features=thisLayer->FirstChildElement("LiveFaceLayers"))for(auto f=features->FirstChildElement("Feature");f;f=f->NextSiblingElement("Feature")){int i=-1;f->QueryAttribute("index",&i);if(i<0||i>2)continue;f->QueryAttribute("enabled",&layer._liveFaceEnabled[i]);f->QueryAttribute("x",&layer._liveFacePosition[i].x);f->QueryAttribute("y",&layer._liveFacePosition[i].y);f->QueryAttribute("width",&layer._liveFaceWidth[i]);layer._liveFaceWidth[i]=std::clamp(layer._liveFaceWidth[i],.01f,1.f);}
+                if(auto features=thisLayer->FirstChildElement("LiveFaceLayers"))for(auto f=features->FirstChildElement("Feature");f;f=f->NextSiblingElement("Feature")){int i=-1;f->QueryAttribute("index",&i);if(i<0||i>2)continue;f->QueryAttribute("enabled",&layer._liveFaceEnabled[i]);f->QueryAttribute("x",&layer._liveFacePosition[i].x);f->QueryAttribute("y",&layer._liveFacePosition[i].y);f->QueryAttribute("width",&layer._liveFaceWidth[i]);layer._liveFaceWidth[i]=std::clamp(layer._liveFaceWidth[i],.01f,1.f);auto& c=layer._liveFaceSettings[i];c.height=layer._liveFaceWidth[i]*.75f;f->QueryAttribute("zoom",&c.zoom);f->QueryAttribute("panX",&c.panX);f->QueryAttribute("panY",&c.panY);f->QueryAttribute("cropWidth",&c.cropWidth);f->QueryAttribute("cropHeight",&c.cropHeight);f->QueryAttribute("cropRotation",&c.cropRotation);f->QueryAttribute("brightness",&c.brightness);f->QueryAttribute("contrast",&c.contrast);f->QueryAttribute("gamma",&c.gamma);f->QueryAttribute("saturation",&c.saturation);f->QueryAttribute("warmth",&c.warmth);f->QueryAttribute("softness",&c.softness);f->QueryAttribute("height",&c.height);f->QueryAttribute("rotation",&c.rotation);f->QueryAttribute("mask",&c.mask);c.zoom=std::clamp(c.zoom,.25f,8.f);c.height=std::clamp(c.height,.01f,1.f);c.mask=std::clamp(c.mask,0,2);c.gamma=std::clamp(c.gamma,.3f,3.f);c.softness=std::clamp(c.softness,.002f,.5f);}
 layer._rigBones.clear();
                 if(auto rig=thisLayer->FirstChildElement("PngRig"))for(auto node=rig->FirstChildElement("Bone");node&&layer._rigBones.size()<32;node=node->NextSiblingElement("Bone")){MaxRigBone b;node->QueryAttribute("sx",&b.start.x);node->QueryAttribute("sy",&b.start.y);node->QueryAttribute("ex",&b.end.x);node->QueryAttribute("ey",&b.end.y);node->QueryAttribute("radius",&b.radius);node->QueryAttribute("strength",&b.strength);node->QueryAttribute("role",&b.role);b.radius=std::clamp(b.radius,.01f,2.f);b.strength=std::clamp(b.strength,0.f,2.f);b.role=std::clamp(b.role,0,2);layer._rigBones.push_back(b);}
                 thisLayer->QueryAttribute("plushEnabled",&layer._plushEnabled);
-                thisLayer->QueryAttribute("plushRoundness",&layer._plushRoundness);layer._plushRoundness=std::clamp(layer._plushRoundness,.05f,1.25f);
+                thisLayer->QueryAttribute("plushFlatness",&layer._plushFlatness);layer._plushFlatness=std::clamp(layer._plushFlatness,0.f,.9f);thisLayer->QueryAttribute("plushRoundness",&layer._plushRoundness);layer._plushRoundness=std::clamp(layer._plushRoundness,.05f,1.25f);
                 thisLayer->QueryAttribute("plushYaw",&layer._plushYaw);layer._plushYaw=std::clamp(layer._plushYaw,-180.f,180.f);layer._plushRenderedYaw=layer._plushYaw;
                 thisLayer->QueryAttribute("plushFollowMouse",&layer._plushFollowMouse);
                 thisLayer->QueryAttribute("plushMouseRange",&layer._plushMouseRange);layer._plushMouseRange=std::clamp(layer._plushMouseRange,0.f,80.f);
@@ -5890,8 +5885,25 @@ bool LayerManager::LayerInfo::DrawGUI(ImGuiStyle& style, int layerID)
 				ToolTip("Restarts all this layer's sprite-sheets whenever\nthis layer is made visible", &_parent->_appConfig->_hoverTimer);
 
                 if(LesserCollapsingHeader("Live facial layers")){
-                    ImGui::TextWrapped("Start webcam tracking in Preferences > Webcam rig. These soft eye and mouth cutouts sit on top of this PNG and follow its bones. No video is saved.");
-                    const char* names[]={"Left eye","Right eye","Mouth"};for(int i=0;i<3;++i){ImGui::PushID(800+i);ImGui::Checkbox(names[i],&_liveFaceEnabled[i]);if(_liveFaceEnabled[i]){ImGui::SliderFloat("Horizontal",&_liveFacePosition[i].x,0,1);ImGui::SliderFloat("Vertical",&_liveFacePosition[i].y,0,1);ImGui::SliderFloat("Width",&_liveFaceWidth[i],.02f,.8f);}ImGui::PopID();}
+                    ImGui::TextWrapped("Facial features are painted onto the front PNG before it turns or bends. Source crop and avatar placement are independent.");
+                    const char* names[]={"Left eye","Right eye","Mouth"};
+                    for(int i=0;i<3;++i){ImGui::PushID(800+i);auto& c=_liveFaceSettings[i];ImGui::Checkbox(names[i],&_liveFaceEnabled[i]);
+                    if(_liveFaceEnabled[i]){ImGui::SliderFloat("Avatar X",&_liveFacePosition[i].x,0,1);ImGui::SliderFloat("Avatar Y",&_liveFacePosition[i].y,0,1);ImGui::SliderFloat("Avatar width",&_liveFaceWidth[i],.02f,.8f);ImGui::SliderFloat("Avatar height",&c.height,.02f,.8f);ImGui::SliderFloat("Avatar rotation",&c.rotation,-180,180);
+                    if(ImGui::Button("Edit crop, zoom and lighting"))ImGui::OpenPopup("Face crop editor");}
+                    ImGui::SetNextWindowSize({520*uiScale,720*uiScale},ImGuiCond_FirstUseEver);
+                    if(ImGui::BeginPopup("Face crop editor")){
+                        ImGui::Text("%s crop editor",names[i]);ImGui::TextWrapped("Drag the preview to pan. These controls change the source framing; avatar placement stays fixed.");
+                        if(_parent->_faceTracker.available){if(!_liveFacePreviews[i]){_liveFacePreviews[i]=std::make_shared<sf::RenderTexture>();_liveFacePreviews[i]->create(256,192);_liveFacePreviews[i]->setSmooth(true);}
+                            auto& preview=*_liveFacePreviews[i];preview.clear(sf::Color::Transparent);auto config=c;config.rotation=0;MaxFaceDraw(preview,_parent->_faceTracker.textures[i],config,{128,96,256,192});preview.display();
+                            float w=std::min(440.f*uiScale,ImGui::GetContentRegionAvail().x),h=w*.75f;auto p=ImGui::GetCursorScreenPos();auto draw=ImGui::GetWindowDrawList();float tile=16*uiScale;
+                            for(float y=0;y<h;y+=tile)for(float x=0;x<w;x+=tile){bool light=(int(x/tile)+int(y/tile))%2;draw->AddRectFilled({p.x+x,p.y+y},{p.x+std::min(x+tile,w),p.y+std::min(y+tile,h)},light?IM_COL32(55,67,85,255):IM_COL32(32,42,58,255));}
+                            ImGui::Image(preview.getTexture(),sf::Vector2f(w,h));if(ImGui::IsItemHovered()&&ImGui::IsMouseDragging(0)){auto d=ImGui::GetIO().MouseDelta;c.panX=std::clamp(c.panX-d.x/w*c.cropWidth/c.zoom,-.5f,.5f);c.panY=std::clamp(c.panY-d.y/h*c.cropHeight/c.zoom,-.5f,.5f);}
+                        }else ImGui::TextWrapped("Start webcam tracking in Preferences > Webcam rig to see the live crop.");
+                        ImGui::SliderFloat("Source zoom",&c.zoom,.25f,8);ImGui::SliderFloat("Source pan X",&c.panX,-.5f,.5f);ImGui::SliderFloat("Source pan Y",&c.panY,-.5f,.5f);ImGui::SliderFloat("Crop width",&c.cropWidth,.1f,2);ImGui::SliderFloat("Crop height",&c.cropHeight,.1f,2);ImGui::SliderFloat("Crop rotation",&c.cropRotation,-90,90);
+                        const char* masks[]={"Ellipse","Rounded rectangle","Rectangle"};ImGui::Combo("Mask shape",&c.mask,masks,3);ImGui::SliderFloat("Edge softness",&c.softness,.002f,.4f);
+                        ImGui::SliderFloat("Brightness",&c.brightness,-2,2,"%.2f stops");ImGui::SliderFloat("Gamma / shadows",&c.gamma,.3f,3);ImGui::SliderFloat("Contrast",&c.contrast,.5f,2);ImGui::SliderFloat("Saturation",&c.saturation,0,2);ImGui::SliderFloat("Warmth",&c.warmth,-.3f,.3f);
+                        if(ImGui::Button("Reset crop and lighting")){float height=c.height,rotation=c.rotation;c=MaxFaceLayer{};c.height=height;c.rotation=rotation;}ImGui::SameLine();if(ImGui::Button("Done"))ImGui::CloseCurrentPopup();ImGui::EndPopup();
+                    }ImGui::PopID();}
                 }
                 if(LesserCollapsingHeader("PNG bone rig")){
                     ImGui::Checkbox("Enable PNG deformation",&_rigEnabled);
@@ -5910,12 +5922,13 @@ bool LayerManager::LayerInfo::DrawGUI(ImGuiStyle& style, int layerID)
                     ImGui::TextWrapped("Idle is the front view. Add a back view below, then adjust the roundness and turn.");
                     SpriteSelectGUI(SP_PLUSH_BACK,smlImageBtnWidth,animBtnWidth,btnColor,uiScale,false,true);
                     ImGui::TextUnformatted("Roundness");ImGui::SetNextItemWidth(-1);ImGui::SliderFloat("##plushRoundness",&_plushRoundness,.05f,1.25f,"%.2f");
+                    ImGui::TextUnformatted("Face flatness");ImGui::SetNextItemWidth(-1);ImGui::SliderFloat("##plushFlatness",&_plushFlatness,0,.9f);
                     ImGui::TextUnformatted("Turn");ImGui::SetNextItemWidth(-1);ImGui::SliderFloat("##plushTurn",&_plushYaw,-180,180,"%.0f degrees");
                     if(MaxUi::Button("Front"))_plushYaw=0;ImGui::SameLine();if(MaxUi::Button("Back"))_plushYaw=180;
                     ImGui::Checkbox("Follow mouse turn",&_plushFollowMouse);
                     if(_plushFollowMouse){ImGui::TextUnformatted("Turn range");ImGui::SetNextItemWidth(-1);ImGui::SliderFloat("##plushTurnRange",&_plushMouseRange,0,80,"%.0f degrees");}
                     if(_plushEnabled&&!_sprites[SP_PLUSH_BACK]->HasTexture())ImGui::TextWrapped("Add a back PNG to activate the effect. Until then, the front stays visible.");
-                    ImGui::TextWrapped("Use matching transparent canvases. This preview wraps the body PNGs; eye and accessory layers keep their existing attachment behaviour.");
+                    ImGui::TextWrapped("Use matching transparent canvases. The continuous surface keeps thin details shallow. Facial cutouts share its projection and transparency; use roundness and face flatness to adjust the volume.");
                 }
 				if (LesserCollapsingHeader("Compositing..."))
 				{

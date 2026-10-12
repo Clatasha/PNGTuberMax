@@ -10,6 +10,8 @@
 #include <cstdint>
 #include "MaxPlushMath.h"
 #include "MaxRig.h"
+#include "MaxFaceLayer.h"
+#include "MaxPlushSurface.h"
 
 class SpriteSheet
 {
@@ -18,6 +20,7 @@ public:
 	void Draw(sf::RenderTarget* target, const sf::RenderStates& states = sf::RenderStates::Default);
 	void Tick();
     const std::vector<MaxRigBone>* rigBones=nullptr; MaxRigPose rigPose;
+    std::vector<MaxFaceOverlay> faceOverlays;float surfaceFlatness=.5f;
     sf::Transform getTransform() const {return _sprite.getTransform();}
     void DrawSurface(sf::RenderTarget*,const sf::Sprite&,const sf::RenderStates&);
     void DrawPlush(sf::RenderTarget* target, SpriteSheet& back, float roundness, float yaw, const sf::RenderStates& states);
@@ -159,6 +162,9 @@ public:
 private:
     bool PrepareDraw(bool forceVisible=false);
     const std::vector<MaxPlushSpan>& PlushContour();
+    bool ComposeFace();sf::RenderTexture _faceComposite;sf::Image _faceImage;
+    MaxPlushSurface _surface;std::uint64_t _surfaceShapeRevision=0;
+    std::vector<float> _surfaceDepth;float _surfaceDepthFlatness=-1;
     std::vector<MaxPlushSpan> _plushRows;
     sf::Image _plushImage;
     unsigned int _plushTextureHandle=0;

@@ -66,8 +66,8 @@ public:
  DWORD acquired=running&&data?WaitForSingleObject(lock,0):WAIT_FAILED;
  if(acquired==WAIT_OBJECT_0||acquired==WAIT_ABANDONED){
  unsigned header[4];std::memcpy(header,data,16);
- if(header[0]==0x52494731&&header[1]!=sequence){sequence=header[1];fresh.restart();available=header[2]==1;
- if(available){std::memcpy(&raw,data+16,12);for(int i=0;i<3;++i){if(textures[i].getSize()!=sf::Vector2u(128,96)){textures[i].create(128,96);textures[i].setSmooth(true);}textures[i].update(data+64+i*128*96*4);}status="Face tracked";}else status=header[2]==3?"Camera unavailable. Close another app using it, or choose a different input.":"Looking for your face";}
+ if(header[0]==0x52494732&&header[1]!=sequence){sequence=header[1];fresh.restart();available=header[2]==1;
+ if(available){std::memcpy(&raw,data+16,12);for(int i=0;i<3;++i){if(textures[i].getSize()!=sf::Vector2u(256,192)){textures[i].create(256,192);textures[i].setSmooth(true);}textures[i].update(data+64+i*256*192*4);}status="Face tracked";}else status=header[2]==3?"Camera unavailable. Close another app using it, or choose a different input.":"Looking for your face";}
  ReleaseMutex(lock);if(fresh.getElapsedTime().asSeconds()>1)available=false;
  }
 #endif
@@ -75,7 +75,7 @@ public:
  float a=1-std::exp(-dt/std::max(.02f,smoothing));pose.lean+=(target.lean-pose.lean)*a;pose.nod+=(target.nod-pose.nod)*a;pose.turn+=(target.turn-pose.turn)*a;
  }
 private:
- static constexpr unsigned bytes=64+3*128*96*4;bool running=false;MaxRigPose raw,neutral;unsigned sequence=0;sf::Clock clock,fresh;
+ static constexpr unsigned bytes=64+3*256*192*4;bool running=false;MaxRigPose raw,neutral;unsigned sequence=0;sf::Clock clock,fresh;
 #ifdef _WIN32
  HANDLE lock=nullptr,map=nullptr,process=nullptr,job=nullptr;unsigned char* data=nullptr;std::wstring name;
 #endif

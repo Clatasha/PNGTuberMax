@@ -292,10 +292,11 @@ public:
         std::string _rigAttachLayer;
     std::array<bool,3> _liveFaceEnabled{{false,false,false}};
     std::array<MaxRigPoint,3> _liveFacePosition{{{.38f,.3f},{.62f,.3f},{.5f,.45f}}};
+    std::array<MaxFaceLayer,3> _liveFaceSettings=[]{std::array<MaxFaceLayer,3> settings;settings[2].height=.18f;return settings;}();std::array<std::shared_ptr<sf::RenderTexture>,3> _liveFacePreviews;
     std::array<float,3> _liveFaceWidth{{.18f,.18f,.24f}};
     bool _rigEnabled=false,_rigEditing=false; std::vector<MaxRigBone> _rigBones; MaxRigPose _rigTestPose; sf::Transform _rigWorld;
     bool _plushEnabled=false,_plushFollowMouse=false;
-        float _plushRoundness=.45f,_plushYaw=0.f,_plushMouseRange=45.f,_plushRenderedYaw=0.f;
+        float _plushFlatness=.5f,_plushRoundness=.45f,_plushYaw=0.f,_plushMouseRange=45.f,_plushRenderedYaw=0.f;
         sf::Clock _plushTurnClock;
         void DrawSprites(sf::RenderTarget* target,const sf::RenderStates& states);
 

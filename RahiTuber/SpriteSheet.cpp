@@ -48,7 +48,14 @@ bool SpriteSheet::PrepareDraw(bool forceVisible)
 	}
     return false;
 }
-void SpriteSheet::Draw(sf::RenderTarget* target,const sf::RenderStates& states){if(PrepareDraw())DrawSurface(target,_sprite,states);}
+bool SpriteSheet::ComposeFace(){
+ if(faceOverlays.empty())return false;auto rect=_sprite.getTextureRect();if(rect.width<=0||rect.height<=0)return false;
+ if(_faceComposite.getSize()!=sf::Vector2u(rect.width,rect.height)&&!_faceComposite.create(rect.width,rect.height))return false;
+ _faceComposite.clear(sf::Color::Transparent);sf::Sprite body(*_tex,rect);sf::RenderStates state;state.blendMode=sf::BlendMode(sf::BlendMode::One,sf::BlendMode::OneMinusSrcAlpha);_faceComposite.draw(body,state);
+ for(auto& layer:faceOverlays)if(layer.texture)MaxFaceDraw(_faceComposite,*layer.texture,layer.settings,{layer.x*rect.width,layer.y*rect.height,layer.width*rect.width,layer.settings.height*rect.height},true);
+ _faceComposite.display();_faceComposite.setSmooth(_texSmooth);return true;
+}
+void SpriteSheet::Draw(sf::RenderTarget* target,const sf::RenderStates& states){if(!PrepareDraw())return;if(!ComposeFace()){DrawSurface(target,_sprite,states);return;}sf::Sprite composed(_faceComposite.getTexture());composed.setColor(_sprite.getColor());auto face=states;face.transform*=_sprite.getTransform();DrawSurface(target,composed,face);}
 void SpriteSheet::DrawSurface(sf::RenderTarget* target,const sf::Sprite& sprite,const sf::RenderStates& states){
  if(!rigBones||rigBones->empty()){target->draw(sprite,states);return;}
  sf::RenderStates meshState=states; meshState.transform*=sprite.getTransform();meshState.texture=sprite.getTexture();
@@ -66,20 +73,28 @@ void SpriteSheet::DrawSurface(sf::RenderTarget* target,const sf::Sprite& sprite,
 const std::vector<MaxPlushSpan>& SpriteSheet::PlushContour(){
  auto rect=_sprite.getTextureRect();auto handle=_tex?_tex->getNativeHandle():0;
  if(handle!=_plushTextureHandle){_plushImage=_tex->copyToImage();_plushTextureHandle=handle;_plushRows.clear();}
- if(_plushRows.empty()||rect!=_plushFrame){_plushFrame=rect;auto size=_plushImage.getSize();_plushRows=MaxPlushContour(_plushImage.getPixelsPtr(),size.x,size.y,rect.left,rect.top,rect.width,rect.height);++_plushRevision;}
+ if(_plushRows.empty()||rect!=_plushFrame){_plushFrame=rect;auto size=_plushImage.getSize();_plushRows=MaxPlushContour(_plushImage.getPixelsPtr(),size.x,size.y,rect.left,rect.top,rect.width,rect.height);++_plushRevision;_surfaceDepth.clear();}
  return _plushRows;
 }
 void SpriteSheet::DrawPlush(sf::RenderTarget* target,SpriteSheet& back,float roundness,float yaw,const sf::RenderStates& states){
  if(!PrepareDraw())return;if(!back.PrepareDraw(true)){DrawSurface(target,_sprite,states);return;}
- const auto& contour=PlushContour();const auto& rear=back.PlushContour();auto rect=_sprite.getTextureRect(),rearRect=back._sprite.getTextureRect();
+ const auto& contour=PlushContour();const auto& rear=back.PlushContour();bool composed=ComposeFace();if(composed){++_plushRevision;}auto rect=_sprite.getTextureRect(),rearRect=back._sprite.getTextureRect();
  sf::RenderStates face=states;face.transform*=_sprite.getTransform();float planeWidth=rect.width*std::max(1.f,roundness);
  auto origin=face.transform.transformPoint(0,0),x=face.transform.transformPoint(1,0)-origin,y=face.transform.transformPoint(0,1)-origin;
  auto view=target->getView().getSize();auto size=target->getSize();float sx=view.x>0?size.x/view.x:1,sy=view.y>0?size.y/view.y:1;
  float dx=std::sqrt(x.x*x.x*sx*sx+x.y*x.y*sy*sy),dy=std::sqrt(y.x*y.x*sx*sx+y.y*y.y*sy*sy);
  int width=std::clamp(int(std::ceil(planeWidth*dx/8))*8,32,1536),height=std::clamp(int(std::ceil(rect.height*dy/8))*8,32,1536);
+ auto originalSize=_plushImage.getSize();MaxPlushPixels original{_plushImage.getPixelsPtr(),int(originalSize.x),int(originalSize.y),rect.left,rect.top,rect.width,rect.height,&contour};
+ if(_surfaceDepth.empty()||surfaceFlatness!=_surfaceDepthFlatness){_surfaceDepth=MaxPlushDepth(original,surfaceFlatness);_surfaceDepthFlatness=surfaceFlatness;++_surfaceShapeRevision;}
+ auto& frontTexture=composed?_faceComposite.getTexture():*_tex;auto frontRect=composed?sf::IntRect(0,0,rect.width,rect.height):rect;
+ if(_surface.Draw(frontTexture,frontRect,*back._tex,rearRect,_surfaceDepth,_surfaceShapeRevision,roundness,yaw,width,height,*_tex,rect)){
+ sf::Sprite projected(_surface.Texture());auto projectedSize=_surface.Texture().getSize();projected.setPosition((rect.width-planeWidth)*.5f,0);projected.setScale(planeWidth/projectedSize.x,float(rect.height)/projectedSize.y);projected.setColor(_sprite.getColor());DrawSurface(target,projected,face);return;}
+ if(composed)_faceImage=_faceComposite.getTexture().copyToImage();
  if(width!=_projectedWidth||height!=_projectedHeight||yaw!=_projectedYaw||roundness!=_projectedRoundness||_plushRevision!=_projectedFrontRevision||back._plushRevision!=_projectedBackRevision){
   auto fs=_plushImage.getSize(),bs=back._plushImage.getSize();
   MaxPlushPixels front{_plushImage.getPixelsPtr(),int(fs.x),int(fs.y),rect.left,rect.top,rect.width,rect.height,&contour};
+  if(_surfaceDepth.empty()||surfaceFlatness!=_surfaceDepthFlatness){_surfaceDepth=MaxPlushDepth(front,surfaceFlatness);_surfaceDepthFlatness=surfaceFlatness;}front.depth=&_surfaceDepth;
+  if(composed){front.pixels=_faceImage.getPixelsPtr();front.textureW=rect.width;front.textureH=rect.height;front.x=front.y=0;}
   MaxPlushPixels rearImage{back._plushImage.getPixelsPtr(),int(bs.x),int(bs.y),rearRect.left,rearRect.top,rearRect.width,rearRect.height,&rear};
   auto pixels=MaxPlushRaster(front,rearImage,roundness,yaw,width,height);if(pixels.empty()){DrawSurface(target,_sprite,states);return;}
   sf::Image projected;projected.create(width,height,pixels.data());
