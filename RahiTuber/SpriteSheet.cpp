@@ -1,6 +1,9 @@
 #include "SpriteSheet.h"
 #include "MaxPlushRaster.h"
 
+// Duplicate saved sprite state; each copy owns fresh render targets and surface caches.
+SpriteSheet::SpriteSheet(const SpriteSheet& o):_frameSizeSetting(o._frameSizeSetting),_visible(o._visible),_loop(o._loop),_offsetFromIdle(o._offsetFromIdle),_preCropSize(o._preCropSize),_cropOffset(o._cropOffset),_optimised(o._optimised),_sprite(o._sprite),_spriteSize(o._spriteSize),_gridSize(o._gridSize),_maxFrame(o._maxFrame),_currentFrame(o._currentFrame),_fps(o._fps),_frameRects(o._frameRects),_playing(o._playing),_timer(o._timer),_tex(o._tex),_texSmooth(o._texSmooth),_texMan(o._texMan),_texPath(o._texPath),_loadTimer(o._loadTimer),_loadTimeout(o._loadTimeout),_spriteUnloaded(o._spriteUnloaded),_spriteLoadFinished(o._spriteLoadFinished){if(_texMan&&!_texPath.empty()){_tex=_texMan->GetTexture(_texPath,this);if(_tex)_sprite.setTexture(*_tex,false);}}
+
 bool SpriteSheet::PrepareDraw(bool forceVisible)
 {
 	sf::Time dt = _timer.getElapsedTime();

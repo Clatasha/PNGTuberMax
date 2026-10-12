@@ -16,6 +16,8 @@
 class SpriteSheet
 {
 public:
+    SpriteSheet()=default;
+    SpriteSheet(const SpriteSheet& other);
 
 	void Draw(sf::RenderTarget* target, const sf::RenderStates& states = sf::RenderStates::Default);
 	void Tick();
