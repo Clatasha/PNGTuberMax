@@ -171,7 +171,7 @@ public:
     MaxCamera camera;
     bool plushDragging=false;float plushDragX=0;
     int preferenceSection=0;float meterPeak=0;sf::Clock meterClock;
-    MaxWorkspace Workspace(){return MaxWorkspace::Make(appConfig->_scrW,appConfig->_scrH,appConfig->_scrW,appConfig->_scrH);}
+    MaxWorkspace Workspace(){return MaxWorkspace::Make(appConfig->_scrW,appConfig->_scrH,appConfig->_scrW,appConfig->_scrH,appConfig->mainWindowScaling*appConfig->customScaling);}
 
 	void LoadCustomFont()
 	{

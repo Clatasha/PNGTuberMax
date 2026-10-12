@@ -5,8 +5,8 @@
 struct MaxRect {float x,y,w,h;};
 struct MaxWorkspace {
  MaxRect left,right,canvas,fit;
- static MaxWorkspace Make(float w,float h,float sceneW,float sceneH){
-  float gap=12,left=std::min(360.f,w*.25f),right=std::min(420.f,w*.30f);MaxWorkspace out;
+ static MaxWorkspace Make(float w,float h,float sceneW,float sceneH,float uiScale=1){
+  float gap=12,left=std::min(360.f*uiScale,w*.32f),right=std::min(420.f*uiScale,w*.30f);MaxWorkspace out;
   out.left={gap,gap,left,std::max(100.f,h-2*gap)};out.right={w-right-gap,gap,right,std::max(100.f,h-2*gap)};
   out.canvas={left+2*gap,54,std::max(1.f,w-left-right-4*gap),std::max(1.f,h-78)};
   float scale=std::min(out.canvas.w/std::max(1.f,sceneW),out.canvas.h/std::max(1.f,sceneH));

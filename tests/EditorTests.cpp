@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <iostream>
 #include <chrono>
+const char* g_toolTipNumberHint="";
 int main(){
  ImGui::CreateContext();auto& io=ImGui::GetIO();io.DisplaySize={360,900};io.DeltaTime=1.f/60;io.IniFilename=nullptr;io.Fonts->AddFontDefault();unsigned char* pixels;int w,h;io.Fonts->GetTexDataAsRGBA32(&pixels,&w,&h);
  ImVec2 min,max;auto frame=[&](){ImGui::NewFrame();ImGui::SetNextWindowPos({0,0});ImGui::SetNextWindowSize({360,900});ImGui::Begin("Test",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoSavedSettings);bool hit=MaxUi::IconLabelButton("save","Save",nullptr,24);min=ImGui::GetItemRectMin();max=ImGui::GetItemRectMax();ImGui::End();ImGui::Render();return hit;};frame();io.AddMousePosEvent((min.x+max.x)*.5f,max.y-9);frame();io.AddMouseButtonEvent(0,true);frame();io.AddMouseButtonEvent(0,false);if(!frame())throw std::runtime_error("Clicking the Save label does not activate its button");ImGui::DestroyContext();

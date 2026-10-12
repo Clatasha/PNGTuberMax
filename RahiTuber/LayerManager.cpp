@@ -974,8 +974,8 @@ void LayerManager::DrawButtonsLayerSetUI()
 {
     TextCentered(ANSIToUTF8(_layerSetName).c_str());float size=24*_appConfig->scalingFactor;auto color=toSFColor(ImGui::GetStyleColorVec4(ImGuiCol_Text));
     auto action=[&](const char* id,sf::Texture* icon,bool& flag,const char* label,const char* help){ImGui::TableNextColumn();flag=MaxUi::IconLabelButton(id,label,icon,size);ToolTip(help,&_appConfig->_hoverTimer);};
-    if(ImGui::BeginTable("##projectFiles",4,ImGuiTableFlags_SizingStretchSame)){action("new",_newFileIcon,_newXMLOpen,"New","New layer set");action("open",_openFileIcon,_loadXMLOpen,"Open","Open XML project. Hold Ctrl to merge into this project.");if(_loadXMLOpen)_mergingLayerSet=ImGui::GetIO().KeyCtrl;action("save",_saveIcon,_saveXMLOpen,"Save","Save project");action("saveas",_saveAsIcon,_saveAsXMLOpen,"Save as","Save as another project");ImGui::EndTable();}
-    if(ImGui::BeginTable("##projectLayers",3,ImGuiTableFlags_SizingStretchSame)){action("portable",_makePortableIcon,_makePortableOpen,"Portable","Package this project with its images");action("reload",_reloadIcon,_reloadXMLOpen,"Reload","Reload project");action("layer",_newLayerIcon,_newLayerOpen,"Layer","Add an image layer");action("folder",_newFolderIcon,_newFolderOpen,"Folder","Add a folder");action("states",_statesIcon,_editStatesOpen,"States","Configure expressions and shortcuts");ImGui::EndTable();}
+    if(ImGui::BeginTable("##projectFiles",ImGui::GetContentRegionAvail().x>=4*(ImGui::GetFontSize()*4.5f+12)?4:2,ImGuiTableFlags_SizingStretchSame)){action("new",_newFileIcon,_newXMLOpen,"New","New layer set");action("open",_openFileIcon,_loadXMLOpen,"Open","Open XML project. Hold Ctrl to merge into this project.");if(_loadXMLOpen)_mergingLayerSet=ImGui::GetIO().KeyCtrl;action("save",_saveIcon,_saveXMLOpen,"Save","Save project");action("saveas",_saveAsIcon,_saveAsXMLOpen,"Save as","Save as another project");ImGui::EndTable();}
+    if(ImGui::BeginTable("##projectLayers",ImGui::GetContentRegionAvail().x>=3*(ImGui::GetFontSize()*5.f+12)?3:2,ImGuiTableFlags_SizingStretchSame)){action("portable",_makePortableIcon,_makePortableOpen,"Portable","Package this project with its images");action("reload",_reloadIcon,_reloadXMLOpen,"Reload","Reload project");action("layer",_newLayerIcon,_newLayerOpen,"Layer","Add an image layer");action("folder",_newFolderIcon,_newFolderOpen,"Folder","Add a folder");action("states",_statesIcon,_editStatesOpen,"States","Configure expressions and shortcuts");ImGui::EndTable();}
 }
 
 void LayerManager::DrawGUI(ImGuiStyle& style, float maxHeight)
@@ -5803,7 +5803,7 @@ bool LayerManager::LayerInfo::DrawGUI(ImGuiStyle& style, int layerID)
                 if(_swapWhenTalking)SpriteSelectGUI(SP_TALK,imgBtnWidth,animBtnWidth,btnColor,uiScale);
                 ImGui::Separator();ImGui::Checkbox("Blinking enabled",&_useBlinkFrame);
                 if(_useBlinkFrame){SpriteSelectGUI(SP_BLINK,imgBtnWidth,animBtnWidth,btnColor,uiScale);ImGui::Checkbox("Blink while talking",&_blinkWhileTalking);if(_blinkWhileTalking&&_swapWhenTalking)SpriteSelectGUI(SP_TALKBLINK,imgBtnWidth,animBtnWidth,btnColor,uiScale);}
-                ImGui::Separator();ImGui::Checkbox("Restart anims on becoming visible",&_restartAnimsOnVisible);
+                ImGui::Separator();ImGui::Checkbox("Restart when shown",&_restartAnimsOnVisible);
 
                 if (LesserCollapsingHeader("Plush PNG mode...")) {
                     if(ImGui::Checkbox("Join front and back PNGs",&_plushEnabled))_parent->_activePlushLayer=_id;
