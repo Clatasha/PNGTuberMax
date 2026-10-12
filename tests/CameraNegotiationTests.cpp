@@ -20,5 +20,15 @@ int main(){check(SUCCEEDED(CoInitializeEx(nullptr,COINIT_MULTITHREADED)),"COM in
  check(SUCCEEDED(cfg->SetFormat(nullptr)),"restore default format");check(cfg->GetFormat(nullptr)==E_POINTER,"null format output");check(SUCCEEDED(cfg->GetFormat(&mt))&&mt,"native format allocation");freeType(mt);mt=nullptr;
  check(FAILED(cfg->GetStreamCaps(1,&mt,(BYTE*)&caps))&&mt==nullptr,"invalid capability index");
  IEnumMediaTypes* types=nullptr;check(SUCCEEDED(pin->EnumMediaTypes(&types)),"enumerate media types");check(types->Next(1,&mt,&fetched)==S_OK&&mt,"native type enumeration");freeType(mt);types->Release();
- check(SUCCEEDED(filter->Pause())&&SUCCEEDED(filter->Stop()),"unconnected state cycle");cfg->Release();pin->Release();filter->Release();}
+ check(SUCCEEDED(filter->Pause())&&SUCCEEDED(filter->Stop()),"unconnected state cycle");cfg->Release();
+ if(cycle<3){IGraphBuilder* graph=nullptr;IBaseFilter* sink=nullptr;IMediaControl* control=nullptr;
+ check(SUCCEEDED(CoCreateInstance(CLSID_FilterGraph,nullptr,CLSCTX_INPROC_SERVER,IID_IGraphBuilder,(void**)&graph)),"native graph");
+ check(SUCCEEDED(CoCreateInstance(CLSID_NullRenderer,nullptr,CLSCTX_INPROC_SERVER,IID_IBaseFilter,(void**)&sink)),"null receiver");
+ check(SUCCEEDED(graph->AddFilter(filter,L"Max Camera"))&&SUCCEEDED(graph->AddFilter(sink,L"Receiver")),"add native filters");
+ IEnumPins* sinkPins=nullptr;IPin* sinkPin=nullptr;sink->EnumPins(&sinkPins);check(sinkPins->Next(1,&sinkPin,nullptr)==S_OK,"receiver pin");sinkPins->Release();
+ check(SUCCEEDED(graph->ConnectDirect(pin,sinkPin,nullptr)),"native stream connection");graph->QueryInterface(IID_IMediaControl,(void**)&control);
+ for(int restart=0;restart<3;++restart){check(SUCCEEDED(control->Run()),"native receiver run");Sleep(200);check(SUCCEEDED(control->Stop()),"native receiver stop");}
+ check(SUCCEEDED(graph->Disconnect(pin))&&SUCCEEDED(graph->Disconnect(sinkPin)),"native disconnect");
+ control->Release();sinkPin->Release();graph->RemoveFilter(filter);graph->RemoveFilter(sink);sink->Release();graph->Release();}
+ pin->Release();filter->Release();}
  CoUninitialize();std::puts("Native recorder negotiation passed (20 device-selection cycles).");return 0;}
