@@ -1,4 +1,4 @@
-PNGTUBER MAX by Clatasha — 0.1.5 DEVELOPMENT PREVIEW
+PNGTUBER MAX by Clatasha — 0.1.6 DEVELOPMENT PREVIEW
 
 Extract the complete folder and open PNGTuberMax.exe. Keep the resources and DLLs together.
 Requires Windows 10/11 x64 with .NET Framework 4.8. No OBS or another PNGTuber app is needed.
@@ -99,3 +99,10 @@ Native format queries now allocate caller-owned COM buffers and validate output 
 Windows tests cover device selection and receiver stop/restart, in addition to frame delivery.
 Close all receiving apps and click Install / repair camera once to replace the old DLL.
 The exact recording app reported to crash has not yet been identified or verified.
+
+0.1.6 CAMERA UPDATE AND DIAGNOSTIC CORRECTIONS
+Camera updates use a separate build directory so an old, loaded DLL cannot block replacement.
+Fully close and reopen receiving apps after setup; they may still hold the previous build.
+The checker verifies installed and packaged DLL hashes before testing delivery.
+Internal delivery success does not prove OBS or Mirillis Action compatibility.
+Native tests now bind through the device moniker, following the OBS discovery path.

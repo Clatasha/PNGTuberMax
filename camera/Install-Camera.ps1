@@ -4,13 +4,20 @@ $reportDir=Join-Path $env:LOCALAPPDATA 'Clatasha\PNGTuberMax'
 New-Item -ItemType Directory $reportDir -Force | Out-Null
 $logPath=Join-Path $reportDir 'camera-install-log.txt'
 try {
-    $target=Join-Path $env:ProgramFiles 'Clatasha\PNGTuberMaxCamera'
+    $root=Join-Path $env:ProgramFiles 'Clatasha\PNGTuberMaxCamera'
+    $cameraSource=Join-Path $PSScriptRoot 'PNGTuberMax.Camera.dll'
+    if (!(Test-Path -LiteralPath $cameraSource)) { throw 'Extract the whole preview folder before camera setup.' }
+    $buildHash=(Get-FileHash -LiteralPath $cameraSource -Algorithm SHA256).Hash
+    # Keep loaded old DLLs untouched. New registrations use a new immutable build directory.
+    $target=Join-Path $root ("versions\"+$buildHash.Substring(0,16))
+    Set-Content -LiteralPath $logPath -Value ("Camera setup: "+(Get-Date -Format o)+"`r`nBuild SHA256: "+$buildHash+"`r`nTarget: "+$target)
     New-Item -ItemType Directory $target -Force | Out-Null
     foreach ($name in @('PNGTuberMax.Camera.dll','DirectShowLib.dll')) {
         $source=Join-Path $PSScriptRoot $name
         if (!(Test-Path -LiteralPath $source)) { throw "Missing $name. Extract the whole preview folder before camera setup." }
         $destination=Join-Path $target $name
-        Copy-Item -LiteralPath $source -Destination $destination -Force
+        $same=(Test-Path -LiteralPath $destination) -and ((Get-FileHash -LiteralPath $source).Hash -eq (Get-FileHash -LiteralPath $destination).Hash)
+        if (!$same) { Copy-Item -LiteralPath $source -Destination $destination -Force }
         # Windows marks DLLs extracted from internet ZIPs. RegAsm otherwise refuses to load them.
         Unblock-File -LiteralPath $destination
     }
@@ -33,7 +40,7 @@ try {
         $key.Dispose();$registry.Dispose();$registered++
     }
     if ($registered -eq 0) { throw '.NET Framework registration tools were not found.' }
-    $message='SUCCESS: Camera installed. Restart the receiving app and select PNGTuber Max Camera.'
+    $message='SUCCESS: Camera build installed. Fully close and reopen OBS / Mirillis Action before selecting PNGTuber Max Camera. Existing receiver processes may still hold the previous DLL.'
     $exitCode=0
 } catch {
     $message='ERROR: '+$_.Exception.Message+"`r`nDetails: $logPath"

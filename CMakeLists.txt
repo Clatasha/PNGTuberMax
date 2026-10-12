@@ -96,5 +96,5 @@ target_compile_features(MaxPlushRasterTests PRIVATE cxx_std_17)
 
 if(WIN32)
  add_executable(MaxCameraNegotiationTests tests/CameraNegotiationTests.cpp)
- target_link_libraries(MaxCameraNegotiationTests PRIVATE ole32 strmiids)
+ target_link_libraries(MaxCameraNegotiationTests PRIVATE ole32 oleaut32 strmiids)
 endif()

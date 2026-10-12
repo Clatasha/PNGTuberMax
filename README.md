@@ -70,3 +70,7 @@ source mipmap averaging and bypasses the preview FXAA pass. Its premultiplied co
 composited once. Sharpness tests cover detailed PNGs at small turn angles.
 
 Camera capability outputs now use caller-owned native buffers. Windows tests probe the unmanaged format API, invalid arguments, twenty device-selection cycles, and repeated receiver start/stop connections. Compatibility with the reporting user’s recorder still needs verification. Close receiving apps and use Install / repair camera once when replacing an older preview.
+
+### 0.1.6 camera installation and discovery checks
+
+Camera DLLs install into separate directories per build, allowing updates while older DLLs are locked. Receiving apps still need a full restart to load the new registration. The checker rejects installed DLLs that do not match the package, and describes frame delivery as an internal test. Native tests now instantiate the camera through its device moniker, covering a discovery step used by OBS. User testing in OBS and Mirillis Action remains necessary.

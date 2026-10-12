@@ -5,6 +5,8 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using DirectShowLib;
 [assembly:ComVisible(false)]
+[assembly:System.Reflection.AssemblyVersion("0.1.6.0")]
+[assembly:System.Reflection.AssemblyFileVersion("0.1.6.0")]
 namespace Clatasha.Camera {
 [ComImport,Guid("56a8689d-0ad4-11ce-b03a-0020af0ba770"),InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
 public interface IMemInputPin {

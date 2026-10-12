@@ -12,7 +12,12 @@ static void check(bool ok,const char* what){if(!ok){std::fprintf(stderr,"FAIL: %
 static void freeType(AM_MEDIA_TYPE* mt){if(!mt)return;CoTaskMemFree(mt->pbFormat);if(mt->pUnk)mt->pUnk->Release();CoTaskMemFree(mt);}
 int main(){check(SUCCEEDED(CoInitializeEx(nullptr,COINIT_MULTITHREADED)),"COM initialization");
  CLSID id;CLSIDFromString(L"{EEBEE603-EC24-4D77-8827-C8F799C81026}",&id);
- for(int cycle=0;cycle<20;++cycle){IBaseFilter* filter=nullptr;check(SUCCEEDED(CoCreateInstance(id,nullptr,CLSCTX_INPROC_SERVER,IID_IBaseFilter,(void**)&filter)),"create installed camera");
+ ICreateDevEnum* devices=nullptr;IEnumMoniker* monikers=nullptr;IMoniker* cameraMoniker=nullptr;
+ check(SUCCEEDED(CoCreateInstance(CLSID_SystemDeviceEnum,nullptr,CLSCTX_INPROC_SERVER,IID_ICreateDevEnum,(void**)&devices)),"system device enumeration");
+ check(devices->CreateClassEnumerator(CLSID_VideoInputDeviceCategory,&monikers,0)==S_OK,"camera category enumeration");IMoniker* current=nullptr;
+ while(monikers->Next(1,&current,nullptr)==S_OK){IPropertyBag* bag=nullptr;VARIANT name;VariantInit(&name);if(SUCCEEDED(current->BindToStorage(nullptr,nullptr,IID_IPropertyBag,(void**)&bag))){if(SUCCEEDED(bag->Read(L"FriendlyName",&name,nullptr))&&name.vt==VT_BSTR&&wcscmp(name.bstrVal,L"PNGTuber Max Camera")==0)cameraMoniker=current;VariantClear(&name);bag->Release();}if(cameraMoniker)break;current->Release();}
+ monikers->Release();devices->Release();check(cameraMoniker!=nullptr,"installed camera name in device list");
+ for(int cycle=0;cycle<20;++cycle){IBaseFilter* filter=nullptr;check(SUCCEEDED(cameraMoniker->BindToObject(nullptr,nullptr,IID_IBaseFilter,(void**)&filter)),"bind installed camera through device moniker (OBS discovery path)");
  IEnumPins* pins=nullptr;check(SUCCEEDED(filter->EnumPins(&pins)),"enumerate pins");IPin* pin=nullptr;ULONG fetched=0;check(pins->Next(1,&pin,&fetched)==S_OK&&fetched==1,"native pin enumeration");pins->Release();
  PIN_INFO info={};check(SUCCEEDED(pin->QueryPinInfo(&info))&&info.dir==PINDIR_OUTPUT&&info.pFilter,"pin info ABI");info.pFilter->Release();
  MaxKsProperty* property=nullptr;check(SUCCEEDED(pin->QueryInterface(__uuidof(MaxKsProperty),(void**)&property)),"capture pin property interface");GUID set,category,expected;CLSIDFromString(L"{9b00f101-1567-11d1-b3f1-00aa003761c5}",&set);CLSIDFromString(L"{fb6c4281-0353-11d1-905f-0000c0cc16ba}",&expected);DWORD support=0,returned=0;
@@ -39,4 +44,4 @@ int main(){check(SUCCEEDED(CoInitializeEx(nullptr,COINIT_MULTITHREADED)),"COM in
  check(SUCCEEDED(graph->Disconnect(pin))&&SUCCEEDED(graph->Disconnect(sinkPin)),"native disconnect");
  control->Release();sinkPin->Release();graph->RemoveFilter(filter);graph->RemoveFilter(sink);sink->Release();graph->Release();}
  pin->Release();filter->Release();}
- CoUninitialize();std::puts("Native recorder negotiation passed (20 device-selection cycles).");return 0;}
+ cameraMoniker->Release();CoUninitialize();std::puts("Native recorder negotiation passed (20 device-selection cycles).");return 0;}
