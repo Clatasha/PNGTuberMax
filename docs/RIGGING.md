@@ -16,3 +16,6 @@ Preview limitations: head rotation drives spine/neck/head influences; there is n
 
 ## Precise eyes and lips
 In each crop editor choose Use precise eyelid / lip mask (or Mask shape > Tracked eyelids / lips). Existing saved projects retain their previous mask until selected. Start with 1 to 3 px Contour padding for eyelids and 0 to 1 px for lips, then adjust Contour feather. Show source and mask boundary overlays the edge for alignment; the overlay appears only in the editor. Offset and width/height corrections adjust the tracked boundary independently of source cropping. Mouth interior remains included when talking. Copy settings also copies these corrections. Replace the app and tracker.py together to update the contour transport.
+
+## Level webcam features
+The tracker levels both eye crops and the mouth with one shared roll measured across the eyes. Camera pixels and contour masks use the same transform, and crop dimensions are measured in that level basis. Tilting your physical head no longer independently tips or shrinks each source cutout. This stabilization is automatic. Manual crop/placement rotation remains available; the character's rig still moves the attached facial surface.

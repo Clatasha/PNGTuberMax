@@ -62,6 +62,7 @@ jobs:
         run: |
           python scripts/Bundle-Tracker.py
           .\build\Release\MaxFaceBridgeTests.exe
+          python scripts/Package-Gyro-Update.py
       - name: Test camera installation and real DirectShow delivery
         shell: powershell
         run: |
@@ -119,3 +120,10 @@ jobs:
             surface-render-check.png
             precise-face-render-check.png
           if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PNGTuberMax-0.1.12-Gyro-Update
+          path: dist/updates/PNGTuberMax-Gyro-Update.zip
+          if-no-files-found: error
+          retention-days: 90

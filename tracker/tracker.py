@@ -17,14 +17,29 @@ def distance_field(polygon):
     outside=cv2.distanceTransform(255-mask,cv2.DIST_L2,cv2.DIST_MASK_PRECISE)
     return np.rint((np.clip(inside-outside,-32,32)+32)*255/64).astype(np.uint8).tobytes()
 
-def cutout(frame, points, indices, contour=None, previous=None):
+def face_roll(points):
+    # Eye centres give one shared roll for all features. Mouth expression must
+    # never independently rotate the mouth crop.
+    left=(np.asarray(points[33])+np.asarray(points[133]))*.5
+    right=(np.asarray(points[263])+np.asarray(points[362]))*.5
+    direction=right-left
+    return math.atan2(float(direction[1]),float(direction[0])) if np.linalg.norm(direction)>1 else 0.
+
+def cutout(frame, points, indices, contour=None, previous=None, roll=0.):
     pts = np.array([points[i] for i in indices], dtype=np.float32)
-    lo, hi = pts.min(axis=0), pts.max(axis=0)
-    center = (lo + hi) / 2
-    w = max(12., float(hi[0]-lo[0])*3.4)
+    # Measure the crop in a level face basis, then map its corners back to the
+    # camera. This cancels roll without shrinking width as the head tilts.
+    c,s=math.cos(roll),math.sin(roll)
+    basis=np.array([[c,-s],[s,c]],np.float32)
+    origin=pts.mean(axis=0)
+    local=(pts-origin)@basis
+    lo,hi=local.min(axis=0),local.max(axis=0)
+    center=origin+basis@((lo+hi)*.5)
+    w=max(12.,float(hi[0]-lo[0])*3.4)
     # Keep the crop aspect stable so a blink or opening mouth is not resized away.
-    h = w * .75
-    src = np.array([[center[0]-w/2, center[1]-h/2], [center[0]+w/2, center[1]-h/2], [center[0]-w/2, center[1]+h/2]], np.float32)
+    h=w*.75
+    corners=np.array([[-w/2,-h/2],[w/2,-h/2],[-w/2,h/2]],np.float32)
+    src=(corners@basis.T+center).astype(np.float32)
     dst = np.array([[0,0],[256,0],[0,192]], np.float32)
     transform = cv2.getAffineTransform(src,dst)
     rgb = cv2.cvtColor(cv2.warpAffine(frame,transform,(256,192)),cv2.COLOR_BGR2RGB)
@@ -36,6 +51,41 @@ def cutout(frame, points, indices, contour=None, previous=None):
         # Respond immediately to blinks/open mouths; lightly smooth small boundary jitter.
         if .65*old_height<new_height<1.5*old_height:polygon=.85*polygon+.15*previous
     return rgba.tobytes(),distance_field(polygon),polygon
+
+def gyro_test():
+    # Rotate a whole synthetic face and its pixels; compare every stabilized
+    # feature with the neutral crop, including its tracked boundary.
+    frame=np.full((400,400,3),40,np.uint8)
+    points=np.full((468,2),200.,np.float32)
+    regions=[[33,133,159,145],[263,362,386,374],[61,291,0,17]]
+    for i,(cx,cy) in enumerate([(125,160),(275,160),(200,250)]):
+        count=len(CONTOURS[i])
+        theta=np.linspace(0,2*np.pi,count,endpoint=False)
+        polygon=np.column_stack((cx+20*np.cos(theta),cy+(6 if i<2 else 12)*np.sin(theta)))
+        points[CONTOURS[i]]=polygon
+        for index,offset in zip(regions[i],[(-20,0),(20,0),(0,-6 if i<2 else -12),(0,6 if i<2 else 12)]):
+            points[index]=np.array([cx,cy])+offset
+        cv2.fillPoly(frame,[np.rint(polygon).astype(np.int32)],(180,210,240))
+        cv2.line(frame,(cx-15,cy),(cx+15,cy),(40,80,120),2)
+    neutral=[cutout(frame,points,r,CONTOURS[i],roll=face_roll(points)) for i,r in enumerate(regions)]
+    for angle in (-45,-30,-15,-5,5,15,30,45):
+        rotation=cv2.getRotationMatrix2D((200,200),angle,1.)
+        tilted=cv2.warpAffine(frame,rotation,(400,400),borderValue=(40,40,40))
+        moved=cv2.transform(points[None,:,:],rotation)[0]
+        roll=face_roll(moved)
+        for i,r in enumerate(regions):
+            image,field,polygon=cutout(tilted,moved,r,CONTOURS[i],roll=roll)
+            ref_image,ref_field,ref_polygon=neutral[i]
+            assert np.max(np.abs(polygon-ref_polygon))<.001, ('gyro contour',angle,i)
+            actual=np.frombuffer(field,np.uint8);expected=np.frombuffer(ref_field,np.uint8)
+            assert np.abs(actual.astype(float)-expected.astype(float)).mean()<.1, ('gyro field',angle,i)
+            union=np.count_nonzero((actual>128)|(expected>128))
+            assert np.count_nonzero((actual>128)&(expected>128))/max(1,union)>.995, ('gyro mask',angle,i)
+            error=np.abs(np.frombuffer(image,np.uint8).astype(float)-np.frombuffer(ref_image,np.uint8).astype(float)).mean()
+            assert error<3., ('gyro pixels',angle,i,error)
+    # Derolling does not suppress blinks or an opening mouth.
+    assert np.ptp(neutral[2][2][:,1])>np.ptp(neutral[0][2][:,1])*1.9
+    print('PASS: shared gyro stabilization for both eyes and mouth at +/-5,15,30,45 degrees; source pixels and contours agree')
 
 def self_test():
     with mp.solutions.face_mesh.FaceMesh(static_image_mode=True,refine_landmarks=True,max_num_faces=1) as detector:
@@ -50,6 +100,7 @@ def self_test():
     assert opened[96,128]>128 and opened[70,128]<128
     assert closed[96,128]>128 and closed[80,128]<128
     assert np.count_nonzero(closed>128)<np.count_nonzero(opened>128)/4
+    gyro_test()
     print('PASS: eyelid/open-mouth contours preserve expression and exclude surrounding skin')
     print('PASS: bundled face model loads; full-resolution source crops for the in-app mask editor')
 
@@ -114,8 +165,9 @@ def run(args):
                     pose=(float(np.clip(-angles[2],-45,45)),float(np.clip(pitch,-45,45)),float(np.clip(angles[1],-60,60)))
                 regions=[[33,133,159,145],[263,362,386,374],[61,291,0,17]]
                 crops=[];fields=[]
+                roll=face_roll(points)
                 for i in range(3):
-                    image,field,polygon=cutout(frame,points,regions[i],CONTOURS[i],previous[i])
+                    image,field,polygon=cutout(frame,points,regions[i],CONTOURS[i],previous[i],roll)
                     crops.append(image);fields.append(field);previous[i]=polygon
                 publish(1,pose,crops,fields)
     finally:
