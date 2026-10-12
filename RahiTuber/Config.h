@@ -264,10 +264,9 @@ struct AudioConfig
 	float _smoothFactor = 24.0f;
 
 	SAMPLE _overallHi = 0.0f;
-	PaStreamParameters _params = {};
+	PaStreamParameters _params = {paNoDevice,0,PA_SAMPLE_TYPE,0.0,nullptr};
 	PaDeviceIndex _devIdx = -1;
 	std::string _lastDeviceName = "";
-	bool _missingDeviceShown = false;
 	int _nDevices = 0;
 	std::vector<std::pair<std::string, int>> _deviceList;
 	paTestData* _streamData = nullptr;
