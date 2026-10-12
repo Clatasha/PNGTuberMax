@@ -5,6 +5,7 @@
 #include <atomic>
 #include <thread>
 #include <cstdio>
+#include <cwchar>
 #include <cstdlib>
 #include <cstring>
 static void check(bool ok,const char* what){if(!ok){std::fprintf(stderr,"FAIL: %s\n",what);std::exit(1);}}
