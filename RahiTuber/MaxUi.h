@@ -1,6 +1,7 @@
 // Original PNGTuber Max interface components by Clatasha, 2026.
 #pragma once
 #include <utility>
+#include <algorithm>
 #include <string>
 #include <SFML/Graphics/Texture.hpp>
 #include "imgui.h"
@@ -23,12 +24,12 @@ inline bool Button(const char* label,const ImVec2& size=ImVec2(0,0)) {
     bool hit=ImGui::Button(label,size);FinishRaised(draw,channels);return hit;
 }
 // Camera action colours remain consistent in the toolbar and preferences.
-inline bool CameraButton(bool running,const ImVec2& size=ImVec2(0,0)) {
+inline bool CameraButton(bool running,const ImVec2& size=ImVec2(0,0),const char* label=nullptr) {
     ImGui::PushStyleColor(ImGuiCol_Button,running?ImVec4(.58f,.12f,.15f,1):ImVec4(.04f,.36f,.18f,1));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered,running?ImVec4(.72f,.16f,.20f,1):ImVec4(.05f,.48f,.24f,1));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive,running?ImVec4(.46f,.09f,.12f,1):ImVec4(.03f,.29f,.15f,1));
     ImGui::PushStyleColor(ImGuiCol_Text,ImVec4(.96f,1.f,.98f,1));
-    bool hit=Button(running?"Stop camera":"Start camera",size);
+    bool hit=Button(label?label:(running?"Stop camera":"Start camera"),size);
     ImGui::PopStyleColor(4);return hit;
 }
 inline void CameraState(bool running) {
@@ -44,7 +45,13 @@ inline bool IconButton(const char* id,const sf::Texture& texture,const sf::Vecto
     auto* draw=ImGui::GetWindowDrawList();ImDrawListSplitter channels;channels.Split(draw,2);channels.SetCurrentChannel(draw,1);
     bool hit=ImGui::ImageButton(id,texture,size,bg,tint);FinishRaised(draw,channels);return hit;
 }
-inline bool IconLabelButton(const char* id,const char* label,const sf::Texture* icon,float iconSize) {
+inline bool IconLabelButton(const char* id,const char* label,const sf::Texture* icon,float iconSize,bool compact=false) {
+ if(compact){
+  float width=ImGui::GetContentRegionAvail().x,font=ImGui::GetFontSize(),height=std::max(iconSize,font)+ImGui::GetStyle().FramePadding.y*2;
+  bool pressed=Button((std::string("##")+id).c_str(),{width,height});auto a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();auto* draw=ImGui::GetWindowDrawList();auto text=ImGui::CalcTextSize(label);float gap=ImGui::GetStyle().ItemInnerSpacing.x;
+  bool showIcon=icon&&iconSize+gap+text.x<=width-ImGui::GetStyle().FramePadding.x*2;float block=text.x+(showIcon?iconSize+gap:0),x=a.x+(width-block)*.5f;
+  draw->PushClipRect(a,b,true);if(showIcon){draw->AddImage(static_cast<ImTextureID>(icon->getNativeHandle()),{x,a.y+(height-iconSize)*.5f},{x+iconSize,a.y+(height+iconSize)*.5f});x+=iconSize+gap;}draw->AddText({x,a.y+(height-text.y)*.5f},ImGui::GetColorU32(ImGuiCol_Text),label);draw->PopClipRect();return pressed;
+ }
  const float width=ImGui::GetContentRegionAvail().x,font=ImGui::GetFontSize(),height=iconSize+font+12;
  bool pressed=Button((std::string("##")+id).c_str(),{width,height});auto a=ImGui::GetItemRectMin();auto* draw=ImGui::GetWindowDrawList();
  if(icon)draw->AddImage(static_cast<ImTextureID>(icon->getNativeHandle()),{a.x+(width-iconSize)*.5f,a.y+4},{a.x+(width+iconSize)*.5f,a.y+4+iconSize});

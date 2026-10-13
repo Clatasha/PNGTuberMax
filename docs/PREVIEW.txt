@@ -1,4 +1,4 @@
-PNGTUBER MAX by Clatasha — 0.1.14 DEVELOPMENT PREVIEW
+PNGTUBER MAX by Clatasha — 0.1.15 DEVELOPMENT PREVIEW
 
 Extract the complete folder and open PNGTuberMax.exe. Keep the resources and DLLs together.
 Requires Windows 10/11 x64 with .NET Framework 4.8. No OBS or another PNGTuber app is needed.
@@ -141,3 +141,6 @@ Attachment > Attach to locks accessories to the parent transform, plush surface 
 
 0.1.14 POPUP INPUT AND ENTER-TO-SAVE
 The preview no longer removes focus from popups or floating UI on mouse-down. Rename/color, States, Portable and other overlapping dialogs retain their input. Avatar rig/turn/window drags yield to UI input. Enter-to-save is restored in Rename Layer alongside the mouse Save button.
+
+0.1.15 COMPACT STUDIO CONTROLS
+Start/Stop camera (webcam tracking) and Start/Stop virtual camera are side by side on the main studio toolbar, followed by a compact Setup button. New/Open/Save/Save as share one compact row with inline icons; Portable/Reload/Layer/Folder/States share a second compact row. Camera selection and calibration remain in Webcam rig preferences.

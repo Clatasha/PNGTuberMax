@@ -1824,8 +1824,19 @@ public:
         auto layout=Workspace();ImGui::SetNextWindowPos({layout.left.x,layout.left.y});ImGui::SetNextWindowSize({layout.left.w,layout.left.h});
         ImGui::Begin("Studio##leftDock",nullptr,ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_AlwaysVerticalScrollbar);
         MaxUi::BrandHeader();float unit=ImGui::GetFrameHeight();
-        float cameraButtonWidth=(ImGui::GetContentRegionAvail().x-style.ItemSpacing.x)*.5f;
-        if(MaxUi::CameraButton(camera.On(),{cameraButtonWidth,ImGui::GetFrameHeight()*1.35f})){if(camera.On())camera.Stop();else camera.Start();}ImGui::SameLine();if(MaxUi::Button("Setup",{cameraButtonWidth,ImGui::GetFrameHeight()*1.35f})){preferenceSection=0;camera.Setup(appConfig->_appLocation);}menuHelp(style);
+        auto& tracker=layerMan->_faceTracker;
+        float setupWidth=ImGui::CalcTextSize("Setup").x+style.FramePadding.x*2;
+        float cameraButtonWidth=(ImGui::GetContentRegionAvail().x-setupWidth-style.ItemSpacing.x*2)*.5f;
+        float cameraHeight=ImGui::GetFrameHeight()*1.15f;
+        if(MaxUi::CameraButton(tracker.Running(),{cameraButtonWidth,cameraHeight},tracker.Running()?"Stop camera":"Start camera")){
+            if(tracker.Running())tracker.Stop();else{if(!tracker.devicesScanned)tracker.RefreshDevices();if(tracker.devices.empty()){tracker.status="No physical webcam found. Choose a camera in Preferences > Webcam rig.";preferenceSection=8;}else tracker.Start(appConfig->_appLocation);}
+        }
+        ToolTip("Start or stop your selected webcam for tracking and live eye/mouth cutouts.",&appConfig->_hoverTimer);
+        ImGui::SameLine();if(MaxUi::CameraButton(camera.On(),{cameraButtonWidth,cameraHeight},camera.On()?"Stop virtual camera":"Start virtual camera")){if(camera.On())camera.Stop();else camera.Start();}
+        ToolTip("Send the avatar to PNGTuber Max Camera in recording, streaming or calling apps.",&appConfig->_hoverTimer);
+        ImGui::SameLine();if(MaxUi::Button("Setup",{setupWidth,cameraHeight})){preferenceSection=0;camera.Setup(appConfig->_appLocation);}
+        ToolTip("Install or repair the virtual camera.",&appConfig->_hoverTimer);
+        menuHelp(style);
         MaxUi::CameraState(camera.On());
         float reserve=(uiConfig->_audioExpanded?9.7f:6.3f)*unit+(audioConfig->_devIdx==paNoDevice?3.5f*unit:0.f);
         float managerHeight=std::max(80.f,ImGui::GetContentRegionAvail().y-reserve);layerMan->DrawGUI(style,managerHeight);
