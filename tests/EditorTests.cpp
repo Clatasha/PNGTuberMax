@@ -1,5 +1,6 @@
 #include "../RahiTuber/LayerManager.h"
 #include "../RahiTuber/MaxUi.h"
+#include "../RahiTuber/MaxPreviewInput.h"
 #include "../RahiTuber/MaxPlushMath.h"
 #include <stdexcept>
 #include <iostream>
@@ -29,11 +30,12 @@ static void AttachmentChecks(const fs::path& dir){
  // Exercise the actual modal, rather than a generic Save button.
  ImGui::CreateContext();auto& io=ImGui::GetIO();io.DisplaySize={900,900};io.DeltaTime=1.f/60;io.IniFilename=nullptr;io.Fonts->AddFontDefault();unsigned char* pixels;int w,h;io.Fonts->GetTexDataAsRGBA32(&pixels,&w,&h);
  child->_renamePopupOpen=true;child->_renameFirstOpened=true;child->_renamingString=std::string(80,'W');ImVec2 lo,hi;bool first=true;
- auto frame=[&](){ImGui::NewFrame();ImGui::Begin("Editor modal test");ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,{0,0});ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,{1,1});if(first){ImGui::OpenPopup("Rename Layer");first=false;}child->DrawRenamePopupGUI();lo={child->_renameSaveBounds.x,child->_renameSaveBounds.y};hi={child->_renameSaveBounds.z,child->_renameSaveBounds.w};ImGui::PopStyleVar(2);ImGui::End();ImGui::Render();};
- frame();frame();io.AddKeyEvent(ImGuiKey_Enter,true);frame();io.AddKeyEvent(ImGuiKey_Enter,false);frame();if(!child->_renamePopupOpen)throw std::runtime_error("Enter prematurely closes rename/color editor");
+ auto frame=[&](){ImGui::NewFrame();ImGui::Begin("Editor modal test");ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,{0,0});ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,{1,1});if(first){ImGui::OpenPopup("Rename Layer");first=false;}ImGui::SetNextWindowPos({400,180});child->DrawRenamePopupGUI();lo={child->_renameSaveBounds.x,child->_renameSaveBounds.y};hi={child->_renameSaveBounds.z,child->_renameSaveBounds.w};ImGui::PopStyleVar(2);ImGui::End();if(MaxPreviewInput::SceneClick(300,0,500,900))throw std::runtime_error("Popup click reached avatar preview");ImGui::Render();};
+ frame();frame();
  auto colorBounds=child->_renameColorBounds;io.AddMousePosEvent((colorBounds.x+colorBounds.z)*.5f,(colorBounds.y+colorBounds.w)*.5f);frame();io.AddMouseButtonEvent(0,true);frame();io.AddMouseButtonEvent(0,false);frame();if(child->_layerColor.w!=1||std::abs(child->_layerColor.y-.4f)>.001f)throw std::runtime_error("Rename color button is not clickable");io.AddMousePosEvent((lo.x+hi.x)*.5f,(lo.y+hi.y)*.5f);frame();io.AddMouseButtonEvent(0,true);frame();io.AddMouseButtonEvent(0,false);frame();
- if(child->_renamePopupOpen||child->_name!=std::string(80,'W')||child->_layerColor.w!=1)throw std::runtime_error("Rename modal Save mouse click or long name failed");ImGui::DestroyContext();
- std::cout<<"PASS: locked accessory ignores child motion, inherits translation/plush/rig, hides with parent, rejects cycles; actual Rename modal Save click and Enter/color editing\n";
+ if(child->_renamePopupOpen||child->_name!=std::string(80,'W')||child->_layerColor.w!=1)throw std::runtime_error("Rename modal Save mouse click or long name failed");
+ child->_renamePopupOpen=true;child->_renameFirstOpened=true;child->_renamingString="Enter saved name";first=true;frame();frame();io.AddKeyEvent(ImGuiKey_Enter,true);frame();io.AddKeyEvent(ImGuiKey_Enter,false);frame();if(child->_renamePopupOpen||child->_name!="Enter saved name")throw std::runtime_error("Enter-to-save was not restored");ImGui::DestroyContext();
+ std::cout<<"PASS: locked accessory ignores child motion, inherits translation/plush/rig, hides with parent, rejects cycles; actual Rename over preview with Save/color clicks and Enter-to-save\n";
 }
 
 int main(){

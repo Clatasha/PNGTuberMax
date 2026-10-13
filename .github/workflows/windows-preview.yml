@@ -28,7 +28,7 @@ jobs:
       - name: Configure Windows x64
         run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 "-DCMAKE_POLICY_VERSION_MINIMUM=3.5" -DPNGMAX_TEST_OBS_CAPTURE=ON
       - name: Build app and frame test
-        run: cmake --build build --config Release --target RahiTuber MaxCameraFrameTests MaxWorkspaceTests MaxPlushMathTests MaxPlushRenderTests MaxEditorTests MaxPlushRasterTests MaxCameraNegotiationTests MaxObsCameraTests MaxRigTests MaxFaceBridgeTests MaxSurfaceRenderTests MaxFaceCropTests MaxWindowTransparencyTests MaxPreciseFaceRenderTests --parallel 4
+        run: cmake --build build --config Release --target RahiTuber MaxCameraFrameTests MaxWorkspaceTests MaxPlushMathTests MaxPlushRenderTests MaxEditorTests MaxPlushRasterTests MaxCameraNegotiationTests MaxObsCameraTests MaxRigTests MaxFaceBridgeTests MaxSurfaceRenderTests MaxFaceCropTests MaxWindowTransparencyTests MaxPreciseFaceRenderTests MaxPreviewInputTests --parallel 4
       - name: Software OpenGL for rendering tests only
         shell: powershell
         run: |
@@ -42,16 +42,29 @@ jobs:
       - name: Test frame contract
         run: |
           .\build\Release\MaxCameraFrameTests.exe
+          if ($LASTEXITCODE -ne 0) { throw 'MaxCameraFrameTests.exe failed.' }
           .\build\Release\MaxWorkspaceTests.exe
+          if ($LASTEXITCODE -ne 0) { throw 'MaxWorkspaceTests.exe failed.' }
           .\build\Release\MaxPlushMathTests.exe
+          if ($LASTEXITCODE -ne 0) { throw 'MaxPlushMathTests.exe failed.' }
           .\build\Release\MaxPlushRenderTests.exe
+          if ($LASTEXITCODE -ne 0) { throw 'MaxPlushRenderTests.exe failed.' }
           .\build\Release\MaxEditorTests.exe
+          if ($LASTEXITCODE -ne 0) { throw 'MaxEditorTests.exe failed.' }
           .\build\Release\MaxPlushRasterTests.exe
+          if ($LASTEXITCODE -ne 0) { throw 'MaxPlushRasterTests.exe failed.' }
           .\build\Release\MaxRigTests.exe
+          if ($LASTEXITCODE -ne 0) { throw 'MaxRigTests.exe failed.' }
           .\build\Release\MaxSurfaceRenderTests.exe
+          if ($LASTEXITCODE -ne 0) { throw 'MaxSurfaceRenderTests.exe failed.' }
           .\build\Release\MaxFaceCropTests.exe
+          if ($LASTEXITCODE -ne 0) { throw 'MaxFaceCropTests.exe failed.' }
           .\build\Release\MaxWindowTransparencyTests.exe
+          if ($LASTEXITCODE -ne 0) { throw 'MaxWindowTransparencyTests.exe failed.' }
           .\build\Release\MaxPreciseFaceRenderTests.exe
+          if ($LASTEXITCODE -ne 0) { throw 'MaxPreciseFaceRenderTests.exe failed.' }
+          .\build\Release\MaxPreviewInputTests.exe
+          if ($LASTEXITCODE -ne 0) { throw 'MaxPreviewInputTests.exe failed.' }
       - name: Package preview
         shell: powershell
         run: .\scripts\Package-Windows.ps1

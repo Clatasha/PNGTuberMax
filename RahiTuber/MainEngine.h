@@ -17,6 +17,7 @@
 
 #include "defines.h"
 #include "MaxUi.h"
+#include "MaxPreviewInput.h"
 #include "MaxCamera.h"
 #include "WorkspaceLayout.h"
 
@@ -1834,7 +1835,7 @@ public:
         
         // Scene is rendered separately below; only the heading belongs to the editor.
         auto* foreground=ImGui::GetForegroundDrawList();foreground->AddText({layout.canvas.x+12,19},IM_COL32(185,213,242,255),"LIVE AVATAR PREVIEW");foreground->AddText({layout.canvas.x+12,37},IM_COL32(125,158,196,255),"Alt + left drag: turn");
-        if(ImGui::IsMouseClicked(0)&&io.MousePos.x>layout.canvas.x&&io.MousePos.x<layout.canvas.x+layout.canvas.w&&io.MousePos.y>layout.canvas.y&&io.MousePos.y<layout.canvas.y+layout.canvas.h){ImGui::SetWindowFocus(nullptr);uiConfig->_advancedMenuShowing=false;}
+        if(MaxPreviewInput::SceneClick(layout.canvas.x,layout.canvas.y,layout.canvas.w,layout.canvas.h))uiConfig->_advancedMenuShowing=false;
         ImGui::EndFrame();ImGui::SFML::Render(appConfig->_menuRT);uiConfig->_firstMenu=false;
     }
 
@@ -2476,7 +2477,12 @@ public:
 				appConfig->_window.requestFocus();
 			}
 
-            if(uiConfig->_menuShowing&&(evt.type==sf::Event::MouseButtonPressed||evt.type==sf::Event::MouseMoved||evt.type==sf::Event::MouseButtonReleased||evt.type==sf::Event::LostFocus)){
+            bool uiOwnsPointer=MaxPreviewInput::PointerOwnedByUi();
+            if(uiOwnsPointer||evt.type==sf::Event::LostFocus){
+                layerMan->RigPointer({},false,true);
+                if(plushDragging){plushDragging=false;layerMan->EndPlushTurn();}
+            }
+            if(!uiOwnsPointer&&uiConfig->_menuShowing&&(evt.type==sf::Event::MouseButtonPressed||evt.type==sf::Event::MouseMoved||evt.type==sf::Event::MouseButtonReleased||evt.type==sf::Event::LostFocus)){
                 bool begin=evt.type==sf::Event::MouseButtonPressed&&evt.mouseButton.button==sf::Mouse::Left;
                 bool end=evt.type==sf::Event::LostFocus||(evt.type==sf::Event::MouseButtonReleased&&evt.mouseButton.button==sf::Mouse::Left);
                 auto fit=Workspace().fit;auto mouse=sf::Mouse::getPosition(appConfig->_window);bool inside=mouse.x>=fit.x&&mouse.x<fit.x+fit.w&&mouse.y>=fit.y&&mouse.y<fit.y+fit.h;
@@ -2485,7 +2491,7 @@ public:
             }
             bool alt=sf::Keyboard::isKeyPressed(sf::Keyboard::LAlt)||sf::Keyboard::isKeyPressed(sf::Keyboard::RAlt);
             if(evt.type==sf::Event::KeyPressed&&evt.key.code==sf::Keyboard::S&&evt.key.control&&!layerMan->PendingHotkey()){layerMan->RequestSave(evt.key.shift);ImGui::SFML::ProcessEvent(appConfig->_window,evt);continue;}
-            if(evt.type==sf::Event::MouseButtonPressed&&evt.mouseButton.button==sf::Mouse::Left&&alt&&!layerMan->PendingHotkey()&&!ImGui::IsPopupOpen("",ImGuiPopupFlags_AnyPopupId|ImGuiPopupFlags_AnyPopupLevel)){
+            if(evt.type==sf::Event::MouseButtonPressed&&evt.mouseButton.button==sf::Mouse::Left&&alt&&!layerMan->PendingHotkey()&&!uiOwnsPointer){
                 auto canvas=Workspace().canvas;float x=evt.mouseButton.x,y=evt.mouseButton.y;
                 if(x>=canvas.x&&x<canvas.x+canvas.w&&y>=canvas.y&&y<canvas.y+canvas.h&&layerMan->BeginPlushTurn()){plushDragging=true;plushDragX=x;ImGui::SFML::ProcessEvent(appConfig->_window,evt);continue;}
             }
@@ -2515,7 +2521,7 @@ public:
 				appConfig->_menuWindow.close();
 				break;
 			}
-			else if ((evt.type == evt.KeyPressed && evt.key.code == sf::Keyboard::Escape) || (evt.type == evt.MouseButtonPressed && sf::Mouse::isButtonPressed(sf::Mouse::Right) && !ImGui::IsAnyItemHovered()))
+			else if ((evt.type == evt.KeyPressed && evt.key.code == sf::Keyboard::Escape) || (evt.type == evt.MouseButtonPressed && sf::Mouse::isButtonPressed(sf::Mouse::Right) && !uiOwnsPointer && !ImGui::IsAnyItemHovered()))
 			{
 				//toggle the menu visibility
 				uiConfig->_menuShowing = !uiConfig->_menuShowing;
@@ -2529,7 +2535,7 @@ public:
 
 				break;
 			}
-			else if (evt.type == evt.MouseButtonPressed)
+			else if (evt.type == evt.MouseButtonPressed && !uiOwnsPointer)
 			{
 				//check if user clicked in the corners for window resize
 				if (GamePad::isMouseButtonPressed(sf::Mouse::Left) && !appConfig->_isFullScreen)

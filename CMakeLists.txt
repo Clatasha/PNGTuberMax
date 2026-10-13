@@ -91,6 +91,12 @@ target_include_directories(MaxEditorTests PRIVATE ${MAX_EDITOR_INCLUDES})
 target_compile_definitions(MaxEditorTests PRIVATE ${MAX_EDITOR_DEFINES})
 target_link_libraries(MaxEditorTests PRIVATE ${MAX_EDITOR_LIBRARIES})
 
+add_executable(MaxPreviewInputTests tests/PreviewInputTests.cpp)
+target_compile_features(MaxPreviewInputTests PRIVATE cxx_std_17)
+target_include_directories(MaxPreviewInputTests PRIVATE ${MAX_EDITOR_INCLUDES})
+target_compile_definitions(MaxPreviewInputTests PRIVATE ${MAX_EDITOR_DEFINES})
+target_link_libraries(MaxPreviewInputTests PRIVATE ${MAX_EDITOR_LIBRARIES})
+
 add_executable(MaxPlushRasterTests tests/PlushRasterTests.cpp)
 target_compile_features(MaxPlushRasterTests PRIVATE cxx_std_17)
 

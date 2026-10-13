@@ -7470,7 +7470,7 @@ void LayerManager::LayerInfo::DrawRenamePopupGUI()
 		}
 
         ImGui::SetNextItemWidth(-1);
-        ImGui::InputText("##renamebox",inputStr,sizeof(inputStr),ImGuiInputTextFlags_AutoSelectAll);
+        bool enterSave=ImGui::InputText("##renamebox",inputStr,sizeof(inputStr),ImGuiInputTextFlags_AutoSelectAll|ImGuiInputTextFlags_EnterReturnsTrue);
         _renamingString=UTF8ToANSI(inputStr);
         bool saved=false;
 
@@ -7599,7 +7599,7 @@ void LayerManager::LayerInfo::DrawRenamePopupGUI()
 		ImGui::Separator();
         saved=MaxUi::Button("Save",{ImGui::GetContentRegionAvail().x,uiUnit});
         {auto lo=ImGui::GetItemRectMin(),hi=ImGui::GetItemRectMax();_renameSaveBounds={lo.x,lo.y,hi.x,hi.y};}
-		if (saved)
+		if (saved || enterSave)
 		{
 			_renamePopupOpen = false;
 			_name = _renamingString;
