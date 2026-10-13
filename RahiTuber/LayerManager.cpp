@@ -78,11 +78,13 @@ sf::Transform LayerManager::LayerInfo::AttachmentTransform(int depth) const {
 }
 sf::Vector2f LayerManager::LayerInfo::AttachmentPoint(sf::Vector2f point,int depth){
  if(!_activeSprite)return point;
+ auto body=_parent->GetLayer(_rigAttachLayer);
+ // A locked intermediate layer ignores its own rig/plush settings, just as
+ // its rendered pixels do. Descendants must use exactly that same path.
+ if(body&&body->_activeSprite&&_attachmentBound&&depth<int(_parent->_layers.size())&&CanAttachTo(*body))return body->AttachmentPoint((_attachmentParentBase.getInverse()*_attachmentBase).transformPoint(point),depth+1);
  auto back=_sprites.find(SP_PLUSH_BACK);bool plush=_plushEnabled&&back!=_sprites.end()&&back->second->HasTexture();
  auto pose=_rigEditing?MaxRigPose{}:_rigTestPose;if(!_rigEditing){pose.lean+=_parent->_webcamPose.lean;pose.nod+=_parent->_webcamPose.nod;pose.turn+=_parent->_webcamPose.turn;}
  _activeSprite->surfaceFlatness=_plushFlatness;point=_activeSprite->SurfacePoint(point,plush,_plushRoundness,_plushRenderedYaw,_rigEnabled?&_rigBones:nullptr,pose);
- auto body=_parent->GetLayer(_rigAttachLayer);
- if(body&&body->_activeSprite&&_attachmentBound&&depth<int(_parent->_layers.size())&&CanAttachTo(*body))return body->AttachmentPoint((_attachmentParentBase.getInverse()*_attachmentBase).transformPoint(point),depth+1);
  return _activeSprite->getTransform().transformPoint(point);
 }
 void LayerManager::LayerInfo::UpdateSurfaceMotion(){
@@ -98,7 +100,7 @@ void LayerManager::LayerInfo::DrawSprites(sf::RenderTarget* target,const sf::Ren
         if(!_attachmentBound){_attachmentParentBase=body->_attachmentBase;_attachmentBound=true;}
         auto local=_attachmentParentBase.getInverse()*_attachmentBase;
         // Front accessories follow every ancestor surface, regardless of layer order.
-        auto ancestor=body;while(ancestor){auto back=ancestor->_sprites.find(SP_PLUSH_BACK);if(ancestor->_plushEnabled&&back!=ancestor->_sprites.end()&&back->second->HasTexture()&&std::cos(ancestor->_plushRenderedYaw*.01745329252f)<=0)return;ancestor=_parent->GetLayer(ancestor->_rigAttachLayer);}
+        auto ancestor=body;while(ancestor){auto back=ancestor->_sprites.find(SP_PLUSH_BACK);if(!_parent->GetLayer(ancestor->_rigAttachLayer)&&ancestor->_plushEnabled&&back!=ancestor->_sprites.end()&&back->second->HasTexture()&&std::cos(ancestor->_plushRenderedYaw*.01745329252f)<=0)return;ancestor=_parent->GetLayer(ancestor->_rigAttachLayer);}
         for(auto& entry:_sprites)if(entry.first!=SP_PLUSH_BACK)body->_activeSprite->DrawAttachment(target,*entry.second,local,states,[&](sf::Vector2f p){return body->AttachmentPoint(p);});
         _rigWorld=states.transform*AttachmentTransform();return;
     }
