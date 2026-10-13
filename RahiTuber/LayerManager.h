@@ -290,6 +290,11 @@ public:
 
 		SpriteSheet* _activeSprite = nullptr;
         std::string _rigAttachLayer;
+        ImVec4 _renameSaveBounds{},_renameColorBounds{};
+        sf::Transform _attachmentBase,_attachmentParentBase;bool _attachmentBound=false;
+        sf::Transform AttachmentTransform(int depth=0) const;
+        bool CanAttachTo(const LayerInfo& body) const;
+        void UpdateSurfaceMotion();
     std::array<bool,3> _liveFaceEnabled{{false,false,false}};
     std::array<MaxRigPoint,3> _liveFacePosition{{{.38f,.3f},{.62f,.3f},{.5f,.45f}}};
     std::array<MaxFaceLayer,3> _liveFaceSettings=[]{std::array<MaxFaceLayer,3> settings;settings[2].height=.18f;settings[2].precisionPadding=1;return settings;}();std::array<std::shared_ptr<sf::RenderTexture>,3> _liveFacePreviews;

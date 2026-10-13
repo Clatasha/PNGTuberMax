@@ -1,4 +1,4 @@
-PNGTUBER MAX by Clatasha — 0.1.12 DEVELOPMENT PREVIEW
+PNGTUBER MAX by Clatasha — 0.1.13 DEVELOPMENT PREVIEW
 
 Extract the complete folder and open PNGTuberMax.exe. Keep the resources and DLLs together.
 Requires Windows 10/11 x64 with .NET Framework 4.8. No OBS or another PNGTuber app is needed.
@@ -135,3 +135,6 @@ Transparency preserves normal window styles, title-bar direction and interactive
 
 0.1.12 PRECISE EYELID AND LIP CUTOUTS
 Tracked contours follow eye opening/closing and outer lips, retaining the mouth interior. Crop editor: Use precise eyelid / lip mask, contour padding/feather, boundary preview and mask offset/width/height corrections. Existing crops and lighting stay saved; Copy settings includes contour controls. Replace both PNGTuberMax.exe and tracker/tracker.py. Stitching and transparency handling are unchanged.
+
+0.1.13 LOCKED ACCESSORIES AND RENAME EDITOR
+Attachment > Attach to locks accessories to the parent transform, plush surface and PNG rig, bypassing child movement/physics. Bindings save with the project and parent visibility is inherited. Front attachments hide at rear-facing turns. Rename Layer has a full-width mouse Save button, a larger scrollable editor and a safe long-name buffer; Enter no longer closes it.

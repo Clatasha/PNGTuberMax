@@ -25,6 +25,7 @@ public:
     std::vector<MaxFaceOverlay> faceOverlays;float surfaceFlatness=.5f;
     sf::Transform getTransform() const {return _sprite.getTransform();}
     void DrawSurface(sf::RenderTarget*,const sf::Sprite&,const sf::RenderStates&);
+    void DrawAttachment(sf::RenderTarget*,SpriteSheet& child,const sf::Transform& local,const sf::RenderStates&,bool plush,float roundness,float yaw,const std::vector<MaxRigBone>* bones,MaxRigPose pose);
     void DrawPlush(sf::RenderTarget* target, SpriteSheet& back, float roundness, float yaw, const sf::RenderStates& states);
 
 
