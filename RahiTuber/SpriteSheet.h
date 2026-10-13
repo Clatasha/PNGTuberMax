@@ -8,6 +8,7 @@
 #include "TextureManager.h"
 #include <thread>
 #include <cstdint>
+#include <functional>
 #include "MaxPlushMath.h"
 #include "MaxRig.h"
 #include "MaxFaceLayer.h"
@@ -25,7 +26,8 @@ public:
     std::vector<MaxFaceOverlay> faceOverlays;float surfaceFlatness=.5f;
     sf::Transform getTransform() const {return _sprite.getTransform();}
     void DrawSurface(sf::RenderTarget*,const sf::Sprite&,const sf::RenderStates&);
-    void DrawAttachment(sf::RenderTarget*,SpriteSheet& child,const sf::Transform& local,const sf::RenderStates&,bool plush,float roundness,float yaw,const std::vector<MaxRigBone>* bones,MaxRigPose pose);
+    sf::Vector2f SurfacePoint(sf::Vector2f,bool plush,float roundness,float yaw,const std::vector<MaxRigBone>*,MaxRigPose);
+    void DrawAttachment(sf::RenderTarget*,SpriteSheet& child,const sf::Transform& local,const sf::RenderStates&,const std::function<sf::Vector2f(sf::Vector2f)>& map);
     void DrawPlush(sf::RenderTarget* target, SpriteSheet& back, float roundness, float yaw, const sf::RenderStates& states);
 
 

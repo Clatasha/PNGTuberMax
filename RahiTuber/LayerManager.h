@@ -293,6 +293,7 @@ public:
         ImVec4 _renameSaveBounds{},_renameColorBounds{};
         sf::Transform _attachmentBase,_attachmentParentBase;bool _attachmentBound=false;
         sf::Transform AttachmentTransform(int depth=0) const;
+        sf::Vector2f AttachmentPoint(sf::Vector2f,int depth=0);
         bool CanAttachTo(const LayerInfo& body) const;
         void UpdateSurfaceMotion();
     std::array<bool,3> _liveFaceEnabled{{false,false,false}};

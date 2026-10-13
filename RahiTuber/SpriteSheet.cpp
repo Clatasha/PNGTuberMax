@@ -79,19 +79,16 @@ const std::vector<MaxPlushSpan>& SpriteSheet::PlushContour(){
  if(_plushRows.empty()||rect!=_plushFrame){_plushFrame=rect;auto size=_plushImage.getSize();_plushRows=MaxPlushContour(_plushImage.getPixelsPtr(),size.x,size.y,rect.left,rect.top,rect.width,rect.height);++_plushRevision;_surfaceDepth.clear();}
  return _plushRows;
 }
-void SpriteSheet::DrawAttachment(sf::RenderTarget* target,SpriteSheet& child,const sf::Transform& local,const sf::RenderStates& states,bool plush,float roundness,float yaw,const std::vector<MaxRigBone>* bones,MaxRigPose pose){
- if(!child.PrepareDraw()||!PrepareDraw(true))return;
- auto bodyRect=_sprite.getTextureRect(),rect=child._sprite.getTextureRect();
- if(bodyRect.width<=0||bodyRect.height<=0)return;
- float angle=yaw*.01745329252f;
- // This is a front-surface attachment, so it hides as the back turns into view.
- if(plush&&std::cos(angle)<=0)return;
- if(plush){const auto& rows=PlushContour();auto size=_plushImage.getSize();MaxPlushPixels original{_plushImage.getPixelsPtr(),int(size.x),int(size.y),bodyRect.left,bodyRect.top,bodyRect.width,bodyRect.height,&rows};if(_surfaceDepth.empty()||surfaceFlatness!=_surfaceDepthFlatness){_surfaceDepth=MaxPlushDepth(original,surfaceFlatness);_surfaceDepthFlatness=surfaceFlatness;++_surfaceShapeRevision;}}
+sf::Vector2f SpriteSheet::SurfacePoint(sf::Vector2f p,bool plush,float roundness,float yaw,const std::vector<MaxRigBone>* bones,MaxRigPose pose){
+ auto rect=_sprite.getTextureRect();if(rect.width<=0||rect.height<=0||!_tex)return p;
+ if(plush){const auto& rows=PlushContour();auto size=_plushImage.getSize();MaxPlushPixels original{_plushImage.getPixelsPtr(),int(size.x),int(size.y),rect.left,rect.top,rect.width,rect.height,&rows};if(_surfaceDepth.empty()||surfaceFlatness!=_surfaceDepthFlatness){_surfaceDepth=MaxPlushDepth(original,surfaceFlatness);_surfaceDepthFlatness=surfaceFlatness;++_surfaceShapeRevision;}
+ float angle=yaw*.01745329252f,z=MaxPlushDepthAt(_surfaceDepth,rect.width,rect.height,p.x,p.y);p.x=rect.width*.5f+(p.x-rect.width*.5f)*std::cos(angle)-z*roundness*std::sin(angle);}
+ if(bones&&!bones->empty()){auto q=MaxRigWarp({p.x/std::max(1.f,_spriteSize.x),p.y/std::max(1.f,_spriteSize.y)},*bones,pose);p={q.x*_spriteSize.x,q.y*_spriteSize.y};}return p;
+}
+void SpriteSheet::DrawAttachment(sf::RenderTarget* target,SpriteSheet& child,const sf::Transform& local,const sf::RenderStates& states,const std::function<sf::Vector2f(sf::Vector2f)>& map){
+ if(!child.PrepareDraw()||!PrepareDraw(true))return;auto rect=child._sprite.getTextureRect();
  const int grid=64;sf::VertexArray mesh(sf::Triangles,grid*grid*6);
- auto make=[&](int x,int y){float u=float(x)/grid,v=float(y)/grid;auto p=local.transformPoint(u*rect.width,v*rect.height);
- if(plush){float z=MaxPlushDepthAt(_surfaceDepth,bodyRect.width,bodyRect.height,p.x,p.y);p.x=bodyRect.width*.5f+(p.x-bodyRect.width*.5f)*std::cos(angle)-z*roundness*std::sin(angle);}
- if(bones&&!bones->empty()){auto q=MaxRigWarp({p.x/std::max(1.f,_spriteSize.x),p.y/std::max(1.f,_spriteSize.y)},*bones,pose);p={q.x*_spriteSize.x,q.y*_spriteSize.y};}
- return sf::Vertex(p,child._sprite.getColor(),{rect.left+u*rect.width,rect.top+v*rect.height});};
+ auto make=[&](int x,int y){float u=float(x)/grid,v=float(y)/grid;auto p=map(local.transformPoint(u*rect.width,v*rect.height));return sf::Vertex(p,child._sprite.getColor(),{rect.left+u*rect.width,rect.top+v*rect.height});};
  for(int y=0;y<grid;++y)for(int x=0;x<grid;++x){int n=(y*grid+x)*6;mesh[n]=make(x,y);mesh[n+1]=make(x+1,y);mesh[n+2]=make(x+1,y+1);mesh[n+3]=mesh[n];mesh[n+4]=mesh[n+2];mesh[n+5]=make(x,y+1);}
  auto draw=states;draw.texture=child._sprite.getTexture();target->draw(mesh,draw);
 }

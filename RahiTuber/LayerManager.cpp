@@ -76,6 +76,15 @@ sf::Transform LayerManager::LayerInfo::AttachmentTransform(int depth) const {
  if(body&&body!=this&&body->_activeSprite&&_attachmentBound&&depth<int(_parent->_layers.size()))return body->AttachmentTransform(depth+1)*_attachmentParentBase.getInverse()*_attachmentBase;
  return _activeSprite->getTransform();
 }
+sf::Vector2f LayerManager::LayerInfo::AttachmentPoint(sf::Vector2f point,int depth){
+ if(!_activeSprite)return point;
+ auto back=_sprites.find(SP_PLUSH_BACK);bool plush=_plushEnabled&&back!=_sprites.end()&&back->second->HasTexture();
+ auto pose=_rigEditing?MaxRigPose{}:_rigTestPose;if(!_rigEditing){pose.lean+=_parent->_webcamPose.lean;pose.nod+=_parent->_webcamPose.nod;pose.turn+=_parent->_webcamPose.turn;}
+ _activeSprite->surfaceFlatness=_plushFlatness;point=_activeSprite->SurfacePoint(point,plush,_plushRoundness,_plushRenderedYaw,_rigEnabled?&_rigBones:nullptr,pose);
+ auto body=_parent->GetLayer(_rigAttachLayer);
+ if(body&&body->_activeSprite&&_attachmentBound&&depth<int(_parent->_layers.size())&&CanAttachTo(*body))return body->AttachmentPoint((_attachmentParentBase.getInverse()*_attachmentBase).transformPoint(point),depth+1);
+ return _activeSprite->getTransform().transformPoint(point);
+}
 void LayerManager::LayerInfo::UpdateSurfaceMotion(){
     float turn=_plushYaw+(_rigEnabled&&!_rigEditing?_parent->_webcamPose.turn:0);
     if(_plushFollowMouse){auto size=_parent->_appConfig->_window.getSize();auto mouse=sf::Mouse::getPosition(_parent->_appConfig->_window);if(size.x)turn+=std::clamp(2.f*mouse.x/size.x-1.f,-1.f,1.f)*_plushMouseRange;}
@@ -88,13 +97,9 @@ void LayerManager::LayerInfo::DrawSprites(sf::RenderTarget* target,const sf::Ren
     if(auto body=_parent->GetLayer(_rigAttachLayer);body&&body!=this&&body->_activeSprite&&_activeSprite&&CanAttachTo(*body)){
         if(!_attachmentBound){_attachmentParentBase=body->_attachmentBase;_attachmentBound=true;}
         auto local=_attachmentParentBase.getInverse()*_attachmentBase;
-        auto pose=body->_rigEditing?MaxRigPose{}:body->_rigTestPose;
-        if(!body->_rigEditing){pose.lean+=_parent->_webcamPose.lean;pose.nod+=_parent->_webcamPose.nod;pose.turn+=_parent->_webcamPose.turn;}
-        auto parentStates=states;parentStates.transform*=body->AttachmentTransform();
-        body->_activeSprite->surfaceFlatness=body->_plushFlatness;
-        auto back=body->_sprites.find(SP_PLUSH_BACK);
-        bool plush=body->_plushEnabled&&back!=body->_sprites.end()&&back->second->HasTexture();
-        for(auto& entry:_sprites)if(entry.first!=SP_PLUSH_BACK)body->_activeSprite->DrawAttachment(target,*entry.second,local,parentStates,plush,body->_plushRoundness,body->_plushRenderedYaw,body->_rigEnabled?&body->_rigBones:nullptr,pose);
+        // Front accessories follow every ancestor surface, regardless of layer order.
+        auto ancestor=body;while(ancestor){auto back=ancestor->_sprites.find(SP_PLUSH_BACK);if(ancestor->_plushEnabled&&back!=ancestor->_sprites.end()&&back->second->HasTexture()&&std::cos(ancestor->_plushRenderedYaw*.01745329252f)<=0)return;ancestor=_parent->GetLayer(ancestor->_rigAttachLayer);}
+        for(auto& entry:_sprites)if(entry.first!=SP_PLUSH_BACK)body->_activeSprite->DrawAttachment(target,*entry.second,local,states,[&](sf::Vector2f p){return body->AttachmentPoint(p);});
         _rigWorld=states.transform*AttachmentTransform();return;
     }
     if(_activeSprite)_rigWorld=states.transform*_activeSprite->getTransform();
@@ -252,7 +257,7 @@ void LayerManager::Draw(sf::RenderTarget* target, float windowHeight, float wind
 				LayerInfo& checkLayer = _layers[l];
 				//check if any layer relies on it as a parent
 				if (checkLayer._rigAttachLayer == layer->_id || checkLayer._motionParent == layer->_id
-					|| checkLayer._clipID == layer->_id
+					|| checkLayer._clipID == layer->_id 
 					|| checkLayer.motionTimerID == layer->_id
 					|| checkLayer.blinkSyncID == layer->_id
 					|| checkLayer.bounceTimerID == layer->_id
@@ -294,7 +299,7 @@ void LayerManager::Draw(sf::RenderTarget* target, float windowHeight, float wind
 
 			auto usingBlendmode = layer._blendMode;
 
-			bool blendModeNeedsPremult =
+			bool blendModeNeedsPremult = 
 				usingBlendmode == g_blendmodes["Multiply"]
 				|| usingBlendmode == g_blendmodes["Normal"]
 				|| usingBlendmode == g_blendmodes["Lighten"]
@@ -495,7 +500,7 @@ void LayerManager::DrawEditorGuides(sf::RenderTarget* target)
  }
 
 	// ------------------------------------- reset / ui loop ---------------------------------
-
+	
 	for (int l = _layers.size() - 1; l >= 0; l--)
 	{
 		LayerInfo& layer = _layers[l];
@@ -1130,7 +1135,7 @@ void LayerManager::DrawGUI(ImGuiStyle& style, float maxHeight)
 						ImGui::Text(ANSIToUTF8(t.first).c_str());
 
 						ImGui::TableNextColumn();
-
+							
 						ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0.5));
 						if (MaxUi::IconButton("visible", t.second ? *_eyeOpenIcon : *_eyeClosedIcon, headerBtnSize, sf::Color::Transparent, btnColor))
 						{
@@ -2275,7 +2280,7 @@ bool LayerManager::SaveLayers(const std::string& settingsFileName, bool makePort
 		{
 			bool skipOptimised = true;
 
-			sf::Clock updateTimer;
+			sf::Clock updateTimer; 
 			sf::RenderWindow progress;
 			float progSizeY = 120;
 			progress.create(sf::VideoMode(300, progSizeY), "RahiTuber Optimisation", sf::Style::Titlebar);
@@ -2338,7 +2343,7 @@ bool LayerManager::SaveLayers(const std::string& settingsFileName, bool makePort
 			{
 				logToFile(_appConfig, "Optimising " + layer._name + "...");
 				layer.OptimiseSprites(skipOptimised);
-
+			
 				ImGui::SFML::Update(progress, updateTimer.restart());
 
 				ImGui::SetNextWindowSizeConstraints({ 300, progSizeY }, { 300, progSizeY });
@@ -2620,7 +2625,7 @@ bool LayerManager::SaveLayers(const std::string& settingsFileName, bool makePort
 	auto globalTracking = root->FirstChildElement("GlobalTracking");
 	if (!globalTracking)
 		globalTracking = root->InsertNewChildElement("GlobalTracking");
-
+	
 	globalTracking->SetAttribute("followElliptical", _globalTrackingMotion->_followElliptical);
 	globalTracking->SetAttribute("mouseNeutralX", _globalTracking->_mouseNeutralPos.x);
 	globalTracking->SetAttribute("mouseNeutralY", _globalTracking->_mouseNeutralPos.y);
@@ -3892,7 +3897,7 @@ void LayerManager::CheckHotkeys()
 		}
 
 		if (stateInfo._wasTriggered == true && keyDown == false)
-			changed = true;
+			changed = true;			
 
 		if (stateInfo._activeType == StatesInfo::Held)
 			spamTimeout = 0;
@@ -3921,7 +3926,7 @@ void LayerManager::CheckHotkeys()
 					break;
 				}
 
-
+				
 			}
 			else if (keyDown)
 			{
@@ -3985,7 +3990,7 @@ void LayerManager::CheckHotkeys()
 						stateInfo._timer.restart();
 						stateInfo._active = true;
 					}
-
+					
 				}
 			}
 
@@ -4523,7 +4528,7 @@ void LayerManager::DrawStatesGUI()
 
 								ImGui::EndTable();
 							}
-
+						
 							ImGui::EndTabItem();
 						}
 						ToolTip("Show/Hide individual layers", &_appConfig->_hoverTimer);
@@ -4798,7 +4803,7 @@ bool LayerManager::LayerInfo::EvaluateLayerVisibility()
 		return false;
 
 	bool visible = _visible;
-
+	
 
 	if (_hideWithParent)
 	{
@@ -4962,7 +4967,7 @@ void LayerManager::LayerInfo::DoIndividualMotion(bool talking, bool screaming, f
 			_isScreamVibrating = false;
 		}
 	}
-
+	
 
 	if (_idleMotionEnabled)
 	{
@@ -5050,7 +5055,7 @@ void LayerManager::LayerInfo::DoIndividualMotion(bool talking, bool screaming, f
 		_motionY = newMotionY;
 		_motionX = newMotionX;
 	}
-
+	
 	motionPos.x += _motionX;
 	motionPos.y -= _motionY;
 }
@@ -5125,7 +5130,7 @@ void LayerManager::LayerInfo::CalculateInheritedMotion(sf::Vector2<double>& moti
 			//motionParentPos += mp->_motionLinkData[0]._parentPos;
 		}
 
-
+		
 		directParentScale = motionScale;
 		directParentScale -= {1, 1};
 		directParentScale = Rotate(directParentScale, Deg2Rad(-mp->_rot));
@@ -5332,7 +5337,7 @@ void LayerManager::LayerInfo::CalculateDraw(float windowHeight, float windowWidt
 
 		_motionTimer.restart();
 	}
-
+	
 	_oldVisible = reallyVisible;
 
 	bool screaming = _scream && talkFactor > _screamThreshold;
@@ -5485,7 +5490,7 @@ void LayerManager::LayerInfo::DetermineVisibleSprites(bool talking, bool screami
 	if ((_sprites[SP_TALK]->HasTexture() || _usePhonemes) && _swapWhenTalking && talking)
 	{
 		activeType = SP_TALK;
-
+		
 		if (_usePhonemes)
 		{
 			switch (phMask)
@@ -5657,7 +5662,7 @@ void LayerManager::LayerInfo::AddTrackingMovement(sf::Vector2<double>& mpPos, do
 						}
 					}
 				}
-
+				
 			}
 
 			if (_trackingSettings->_trackingJoystick.first != -1 && sf::Joystick::isConnected(_trackingSettings->_trackingJoystick.first))
@@ -5697,7 +5702,7 @@ void LayerManager::LayerInfo::AddTrackingMovement(sf::Vector2<double>& mpPos, do
 				newTrackingAmount = Clamp(newTrackingAmount + axisAmount * axisEffect, -1.f, 1.f);
 			}
 		}
-
+		
 	}
 
 	float smooth = 1 + _trackingMotion->_trackingSmooth * 10;
@@ -5859,7 +5864,7 @@ bool LayerManager::LayerInfo::DrawGUI(ImGuiStyle& style, int layerID)
 
 						layer->DrawGUI(style, layerIdx);
 					}
-
+						
 				}
 			}
 			else
@@ -6266,7 +6271,7 @@ bool LayerManager::LayerInfo::DrawGUI(ImGuiStyle& style, int layerID)
 					ToolTip("Adds a random variation to the Blink Delay.\nThis sets the maximum variation allowed.", &_parent->_appConfig->_hoverTimer, true);
 
 					ImGui::EndDisabled();
-
+					
 					BetterUnindent("blinking" + _id);
 
 					LayerInfo* oldSync = _parent->GetLayer(blinkSyncID);
@@ -6870,7 +6875,7 @@ bool LayerManager::LayerInfo::DrawGUI(ImGuiStyle& style, int layerID)
 		}
 
 		auto oldCursorPos = ImGui::GetCursorPos();
-
+		
 		if (_tags.size() > 0)
 		{
 			std::string extra = "";
@@ -6904,7 +6909,7 @@ bool LayerManager::LayerInfo::DrawGUI(ImGuiStyle& style, int layerID)
 			ImGui::PopStyleColor();
 			ToolTip(_pinLoaded ? "Pinned" : "Unpinned", _pinLoaded ? "Click to unpin\n(allow unloading this layer's images)" : "Click to pin\n(keep this layer's images in memory)", & _parent->_appConfig->_hoverTimer);
 		}
-
+		
 		ImGui::SetCursorPos(headerButtonsPos);
 		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0.5));
 		if (MaxUi::IconButton("visible", _visible ? *_eyeOpenIcon : *_eyeClosedIcon, headerBtnSize, sf::Color::Transparent, btnColor))
@@ -7545,7 +7550,7 @@ void LayerManager::LayerInfo::DrawRenamePopupGUI()
 			tagBuf[0] = 0;
 			ImGui::SetKeyboardFocusHere(); // actually sets it to the next element which is the textbox
 		}
-
+		
 		if (_addingTag)
 		{
 			bool editBoxConfirm = ImGui::InputText("##inputTagTxt", tagBuf, 256, ImGuiInputTextFlags_EnterReturnsTrue);
@@ -7564,7 +7569,7 @@ void LayerManager::LayerInfo::DrawRenamePopupGUI()
 			{
 				if(!ImGui::IsPopupOpen("##inputTag"))
 					ImGui::OpenPopup("##inputTag");
-
+				
 				ImGui::SetNextWindowPos(ImGui::GetCursorScreenPos());
 			}
 
@@ -7661,7 +7666,7 @@ void LayerManager::LayerInfo::SpriteSelectGUI(SpriteType UISprite, float imgBtnW
 				OffsetPopup(*_sprites[UISprite], _sprites[UISprite].offsetOpen, _sprites[UISprite].oldOffsetOpen);
 			}ImGui::PopID();
 		}
-
+		
 		ImGui::PopStyleVar();//ImGuiStyleVar_FramePadding
 
 		ImGui::SetCursorPos(filePathPos);

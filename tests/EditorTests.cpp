@@ -22,6 +22,8 @@ static void AttachmentChecks(const fs::path& dir){
  body->_activeSprite->setPosition({47,43});auto moved=draw();if(std::hypot(moved.x-neutral.x-7,moved.y-neutral.y-3)>.1f)throw std::runtime_error("Parent translation is not inherited exactly");
  body->_plushRenderedYaw=30;auto turned=draw();if(turned.x>=moved.x-1)throw std::runtime_error("Attachment does not follow the parent plush depth projection");
  body->_plushEnabled=false;body->_rigEnabled=true;body->_rigBones=MaxRigPreset();body->_rigTestPose={15,10,0};auto rigged=draw();auto expected=MaxRigWarp({14.f/32,6.f/32},body->_rigBones,body->_rigTestPose);if(std::hypot(rigged.x-(47+expected.x*32),rigged.y-(43+expected.y*32))>1)throw std::runtime_error("Attached surface does not follow parent rig");
+ auto middle=manager.AddLayer();middle->_sprites[SP_IDLE]->LoadFromTexture(&app._textureMan,bluePath,1,1,1,12);middle->_activeSprite=middle->_sprites[SP_IDLE].get();middle->_activeSprite->_visible=true;middle->_rigAttachLayer=id;middle->_attachmentBound=true;middle->_attachmentParentBase=sf::Transform::Identity;middle->_activeSprite->setPosition({110,110});child->_rigAttachLayer=middle->_id;
+ auto chained=draw();if(std::hypot(chained.x-rigged.x,chained.y-rigged.y)>.01f)throw std::runtime_error("Nested attachment loses ancestor deformation");child->_rigAttachLayer=id;
  body->_visible=false;if(child->EvaluateLayerVisibility())throw std::runtime_error("Attachment is visible without its parent");body->_visible=true;
  body->_rigAttachLayer=childId;if(child->CanAttachTo(*body))throw std::runtime_error("Attachment cycle was permitted");body->_rigAttachLayer.clear();
  // Exercise the actual modal, rather than a generic Save button.
