@@ -170,7 +170,8 @@ public:
 private:
     void PrepareEdges();
     bool PrepareDraw(bool forceVisible=false);
-    sf::Texture _edgeTexture;sf::Image _edgeSource,_edgeImage;
+    sf::Texture _edgeTexture,_edgeUiTexture;
+    unsigned int _edgeUiHandle=0;std::uint64_t _edgeUiRevision=0;sf::Image _edgeSource,_edgeImage;
     unsigned int _edgeSourceHandle=0;std::vector<sf::IntRect> _edgeRects;std::vector<std::vector<float>> _edgeDistances;
     float _appliedFeather=-1,_appliedTrim=-1;
     const std::vector<MaxPlushSpan>& PlushContour();

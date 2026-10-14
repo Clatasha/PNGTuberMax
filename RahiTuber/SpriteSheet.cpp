@@ -52,7 +52,16 @@ bool SpriteSheet::PrepareDraw(bool forceVisible)
 	}
     return false;
 }
-const sf::Texture* SpriteSheet::EdgePreview(){return PrepareDraw(true)?_sprite.getTexture():nullptr;}
+const sf::Texture* SpriteSheet::EdgePreview(){
+ if(!PrepareDraw(true))return nullptr;auto* texture=_sprite.getTexture();
+ // ImGui uses straight-alpha blending; avatar textures remain premultiplied.
+ if(_edgeUiHandle!=texture->getNativeHandle()||_edgeUiRevision!=_plushRevision){
+  auto image=texture->copyToImage();auto size=image.getSize();std::vector<unsigned char> pixels(image.getPixelsPtr(),image.getPixelsPtr()+std::size_t(size.x)*size.y*4);
+  for(std::size_t i=0;i<pixels.size();i+=4)if(pixels[i+3])for(int c=0;c<3;++c)pixels[i+c]=static_cast<unsigned char>(std::min(255u,(unsigned(pixels[i+c])*255u+pixels[i+3]/2u)/pixels[i+3]));
+  image.create(size.x,size.y,pixels.data());if(!_edgeUiTexture.loadFromImage(image))return nullptr;_edgeUiHandle=texture->getNativeHandle();_edgeUiRevision=_plushRevision;
+ }
+ _edgeUiTexture.setSmooth(_texSmooth);return &_edgeUiTexture;
+}
 void SpriteSheet::PrepareEdges(){
  if(!std::isfinite(edgeFeather))edgeFeather=0;if(!std::isfinite(edgeTrim))edgeTrim=0;
  edgeFeather=std::clamp(edgeFeather,0.f,256.f);edgeTrim=std::clamp(edgeTrim,0.f,256.f);
@@ -154,7 +163,7 @@ void SpriteSheet::LoadFromTexture(TextureManager* texMan, const std::string& tex
 		return;
 
 	_tex = tex;
-    _plushTextureHandle=0;_plushRows.clear();_edgeSourceHandle=0;
+    _plushTextureHandle=0;_plushRows.clear();_edgeSourceHandle=0;_edgeUiHandle=0;
 	_texMan = texMan;
 	_texPath = texPath;
 
@@ -222,7 +231,7 @@ void SpriteSheet::UpdateSize()
 
 void SpriteSheet::UnloadTexture()
 {
-    _edgeSourceHandle=0;_edgeDistances.clear();_edgeRects.clear();
+    _edgeSourceHandle=0;_edgeUiHandle=0;_edgeDistances.clear();_edgeRects.clear();
 	if (_texMan == nullptr || _spriteUnloaded)
 		return;
 
@@ -239,7 +248,7 @@ void SpriteSheet::UnloadTexture()
 
 void SpriteSheet::ReloadTexture(bool force, const std::string& updatePath)
 {
-    _plushTextureHandle=0;_plushRows.clear();_edgeSourceHandle=0;
+    _plushTextureHandle=0;_plushRows.clear();_edgeSourceHandle=0;_edgeUiHandle=0;
 	if (!force && (_texMan == nullptr || !_spriteUnloaded))
 		return;
 
@@ -281,7 +290,7 @@ bool SpriteSheet::HasTexture()
 
 void SpriteSheet::Clear()
 {
-    _edgeSourceHandle=0;_edgeDistances.clear();_edgeRects.clear();
+    _edgeSourceHandle=0;_edgeUiHandle=0;_edgeDistances.clear();_edgeRects.clear();
 	_texPath = "";
 	_tex = nullptr;
 	_spriteSize = { 0,0 };
