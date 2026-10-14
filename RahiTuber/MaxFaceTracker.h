@@ -68,9 +68,9 @@ public:
  DWORD acquired=running&&data?WaitForSingleObject(lock,0):WAIT_FAILED;
  if(acquired==WAIT_OBJECT_0||acquired==WAIT_ABANDONED){
  unsigned header[4];std::memcpy(header,data,16);
- if(header[0]&&header[0]!=0x52494734){available=false;status="Tracker version mismatch. Replace tracker.py from this update.";}
- if(header[0]==0x52494734&&header[1]!=sequence){sequence=header[1];fresh.restart();available=header[2]==1;
- if(available){float values[3];std::memcpy(values,data+32,12);mouth={values[0],values[1],values[2]==1.f};if(!mouth.Usable())mouth={};std::memcpy(&raw,data+16,12);for(int i=0;i<3;++i){if(textures[i].getSize()!=sf::Vector2u(256,192)){textures[i].create(256,192);textures[i].setSmooth(true);}textures[i].update(data+64+i*256*192*4);
+ if(header[0]&&header[0]!=0x52494735){available=false;status="Tracker version mismatch. Replace tracker.py from this update.";}
+ if(header[0]==0x52494735&&header[1]!=sequence){sequence=header[1];fresh.restart();available=header[2]==1;
+ if(available){float values[6];std::memcpy(values,data+32,24);mouth={values[0],values[1],values[2]==1.f,values[3],values[4],values[5]==1.f};if(!mouth.Usable())mouth={};std::memcpy(&raw,data+16,12);for(int i=0;i<3;++i){if(textures[i].getSize()!=sf::Vector2u(256,192)){textures[i].create(256,192);textures[i].setSmooth(true);}textures[i].update(data+64+i*256*192*4);
  if(contours[i].getSize()!=sf::Vector2u(256,192)){contours[i].create(256,192);contours[i].setSmooth(true);}
  std::vector<unsigned char> field(256*192*4,255);const auto* input=data+64+3*256*192*4+i*256*192;
  for(int n=0;n<256*192;++n)field[n*4]=field[n*4+1]=field[n*4+2]=input[n];contours[i].update(field.data());}status="Face tracked";}else status=header[2]==3?"Camera unavailable. Close another app using it, or choose a different input.":"Looking for your face";}

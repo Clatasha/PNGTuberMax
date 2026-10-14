@@ -1607,7 +1607,7 @@ LayerManager::LayerInfo* LayerManager::AddLayer(const LayerInfo* toCopy, bool is
 	{
 		newLayer = LayerInfo(*toCopy);
 		newLayer._name += " Copy";
-        newLayer._lipSelector.Reset();newLayer._mouthCapture={};newLayer._lipResult={};newLayer._mouthFrame=0;newLayer._lipClock.restart();
+        newLayer._mouthPreview=-1;newLayer._mouthImportOpen=false;newLayer._bankCapture={};newLayer._bankSelector.Reset();newLayer._lipSelector.Reset();newLayer._mouthCapture={};newLayer._lipResult={};newLayer._mouthFrame=0;newLayer._lipClock.restart();
 
 		for (int sp = SP_IDLE; sp < SP_END; sp++)
 		{
@@ -2414,6 +2414,8 @@ bool LayerManager::SaveLayers(const std::string& settingsFileName, bool makePort
 			thisLayer->SetAttribute("smoothAmount", layer._smoothTalkFactorSize);
 			thisLayer->SetAttribute("restartOnSwap", layer._restartTalkAnim);
 			thisLayer->SetAttribute("usePhonemes", layer._usePhonemes);
+            thisLayer->SetAttribute("expandedMouths",layer._expandedMouths);thisLayer->SetAttribute("matchMouthCanvas",layer._matchMouthCanvas);
+            auto bank=thisLayer->InsertNewChildElement("MouthBank");for(int i=0;i<13;++i){auto e=bank->InsertNewChildElement("Shape");auto& t=layer._mouthBank.targets[i];e->SetAttribute("mask",int(MaxMouthDefinitions[i].shape));e->SetAttribute("enabled",t.enabled);e->SetAttribute("family",int(t.family));e->SetAttribute("captured",t.captured);e->SetAttribute("open",t.pose.open);e->SetAttribute("width",t.pose.width);e->SetAttribute("teeth",t.pose.teeth);e->SetAttribute("tongue",t.pose.tongue);e->SetAttribute("details",t.pose.details);}
             thisLayer->SetAttribute("lipSource",layer._lipSource);thisLayer->SetAttribute("lipHold",layer._lipHold);
             auto mouth=thisLayer->InsertNewChildElement("MouthCalibration");mouth->SetAttribute("captured",layer._mouthCalibration.captured);
             for(int i=0;i<4;++i){auto pose=mouth->InsertNewChildElement("Pose");pose->SetAttribute("index",i);pose->SetAttribute("open",layer._mouthCalibration.poses[i].open);pose->SetAttribute("width",layer._mouthCalibration.poses[i].width);}
@@ -2967,6 +2969,8 @@ bool LayerManager::LoadLayers(const std::string& settingsFileName)
 				thisLayer->QueryAttribute("smoothAmount", &layer._smoothTalkFactorSize);
 				thisLayer->QueryAttribute("restartOnSwap", &layer._restartTalkAnim);
 				thisLayer->QueryAttribute("usePhonemes", &layer._usePhonemes);
+                thisLayer->QueryBoolAttribute("expandedMouths",&layer._expandedMouths);thisLayer->QueryBoolAttribute("matchMouthCanvas",&layer._matchMouthCanvas);
+                if(auto bank=thisLayer->FirstChildElement("MouthBank"))for(auto e=bank->FirstChildElement("Shape");e;e=e->NextSiblingElement("Shape")){int mask=0,family=0;e->QueryIntAttribute("mask",&mask);int i=MaxMouthIndex(static_cast<MaxLipShape>(mask));if(i<0)continue;auto& t=layer._mouthBank.targets[i];e->QueryBoolAttribute("enabled",&t.enabled);e->QueryBoolAttribute("captured",&t.captured);if(e->QueryIntAttribute("family",&family)==tinyxml2::XML_SUCCESS)t.family=static_cast<MaxLipShape>(family);e->QueryFloatAttribute("open",&t.pose.open);e->QueryFloatAttribute("width",&t.pose.width);e->QueryFloatAttribute("teeth",&t.pose.teeth);e->QueryFloatAttribute("tongue",&t.pose.tongue);e->QueryBoolAttribute("details",&t.pose.details);t.pose.valid=true;}layer._mouthBank.Sanitize();
                 thisLayer->QueryIntAttribute("lipSource",&layer._lipSource);layer._lipSource=std::clamp(layer._lipSource,0,2);
                 thisLayer->QueryFloatAttribute("lipHold",&layer._lipHold);layer._lipHold=std::isfinite(layer._lipHold)?std::clamp(layer._lipHold,0.f,.15f):.04f;
                 if(auto mouth=thisLayer->FirstChildElement("MouthCalibration")){mouth->QueryUnsignedAttribute("captured",&layer._mouthCalibration.captured);for(auto pose=mouth->FirstChildElement("Pose");pose;pose=pose->NextSiblingElement("Pose")){int i=-1;pose->QueryIntAttribute("index",&i);if(i>=0&&i<4){pose->QueryFloatAttribute("open",&layer._mouthCalibration.poses[i].open);pose->QueryFloatAttribute("width",&layer._mouthCalibration.poses[i].width);}}}layer._mouthCalibration.Sanitize();
@@ -5359,13 +5363,20 @@ void LayerManager::LayerInfo::CalculateDraw(float windowHeight, float windowWidt
 
 	bool talking = !screaming && talkFactor > _talkThreshold;
     float lipDt=_lipClock.restart().asSeconds();
+    if(_mouthPreview>=0){_mouthPreviewSeconds-=std::min(.1f,lipDt);if(_mouthPreviewSeconds<=0)_mouthPreview=-1;}
     auto& tracker=_parent->_faceTracker;auto mouth=tracker.available?tracker.mouth:MaxMouthSample{};
     bool fresh=tracker.MouthFrame()!=_mouthFrame;_mouthFrame=tracker.MouthFrame();
-    if(_mouthCapture.Feed(mouth,fresh,lipDt,_mouthCalibration))_lipSelector.Reset();
+    if(_mouthCapture.Feed(mouth,fresh,lipDt,_mouthCalibration)){_lipSelector.Reset();_bankSelector.Reset();}
+    int capturing=_bankCapture.slot;MaxMouthSample captured;
+    if(_bankCapture.FeedSample(mouth,fresh,lipDt,captured)==1&&capturing>=0&&capturing<13){_mouthBank.targets[capturing].pose=captured;_mouthBank.targets[capturing].captured=true;_bankSelector.Reset();}
     if(_usePhonemes){
-        _lipResult=_lipSelector.Update(static_cast<MaxLipSource>(_lipSource),mouth,_mouthCalibration,static_cast<MaxLipShape>(phMask),talking||screaming,talkAmount,lipDt,_lipHold);
+        if(_expandedMouths){unsigned available=0;for(int i=0;i<13;++i)if(_sprites[MaxMouthSprites[i]]->HasTexture()||(screaming&&_sprites[MaxMouthScreamSprites[i]]->HasTexture()))available|=1u<<i;
+            _lipResult=_bankSelector.Update(static_cast<MaxLipSource>(_lipSource),mouth,_mouthCalibration,_mouthBank,available,static_cast<MaxLipShape>(phMask),talking||screaming,talkAmount,lipDt,_lipHold);
+            phMask=static_cast<PhonemeMask>(_lipResult.shape);
+        }else _lipResult=_lipSelector.Update(static_cast<MaxLipSource>(_lipSource),mouth,_mouthCalibration,static_cast<MaxLipShape>(phMask),talking||screaming,talkAmount,lipDt,_lipHold);
+        if(_mouthPreview>=0&&_mouthPreview<13){_lipResult={MaxMouthDefinitions[_mouthPreview].shape,true,true,.5f};phMask=static_cast<PhonemeMask>(_lipResult.shape);screaming=false;}
         if(_lipResult.camera){phMask=static_cast<PhonemeMask>(_lipResult.shape);screaming=screaming&&_lipResult.talking;talking=_lipResult.talking&&!screaming;talkAmount=_lipResult.amount;}
-    }else{_lipSelector.Reset();_lipResult={};}
+    }else{_lipSelector.Reset();_bankSelector.Reset();_lipResult={};_mouthPreview=-1;}
 	DetermineVisibleSprites(talking, screaming, activeSpriteCol, talkAmount, phMask);
 
 	_wasTalking = talking;
@@ -5379,8 +5390,10 @@ void LayerManager::LayerInfo::CalculateDraw(float windowHeight, float windowWidt
 
 	sf::Vector2<double> centerToPivot(_pivot - sf::Vector2<double>(0.5, 0.5));
 	sf::Vector2<double> idleCenterToPivotPX(centerToPivot * sf::Vector2<double>(_sprites[SP_IDLE]->Size()));
-	sf::Vector2<double> activeSpriteCenter(0.5 * sf::Vector2<double>(_activeSprite->Size()) + sf::Vector2<double>(_activeSprite->_offsetFromIdle));
-	sf::Vector2<double> pivot(activeSpriteCenter + idleCenterToPivotPX);
+	float mouthFit=1;
+    if(_matchMouthCanvas){bool isMouth=_activeSprite==_sprites[SP_IDLE].get()||_activeSprite==_sprites[SP_TALK].get();for(int i=0;i<13;++i)isMouth=isMouth||_activeSprite==_sprites[MaxMouthSprites[i]].get()||_activeSprite==_sprites[MaxMouthScreamSprites[i]].get();
+        if(isMouth){auto reference=_sprites[SP_IDLE]->_optimised?_sprites[SP_IDLE]->_preCropSize:_sprites[SP_IDLE]->Size();auto canvas=_activeSprite->_optimised?_activeSprite->_preCropSize:_activeSprite->Size();if(reference.x>0&&reference.y>0&&canvas.x>0&&canvas.y>0)mouthFit=std::min(reference.x/canvas.x,reference.y/canvas.y);}}
+    sf::Vector2<double> pivot(.5*sf::Vector2<double>(_activeSprite->Size())+(sf::Vector2<double>(_activeSprite->_offsetFromIdle)+idleCenterToPivotPX)/double(mouthFit));
 
 	bool hasParent = !(_motionParent == "" || _motionParent == "-1");
 	if (hasParent)
@@ -5435,9 +5448,9 @@ void LayerManager::LayerInfo::CalculateDraw(float windowHeight, float windowWidt
 	motionScale = sf::Vector2<double>(_scale) * motionScale;
 
     _attachmentBase=sf::Transform::Identity;
-    _attachmentBase.translate(_pos).rotate(float(_rot)).scale(_scale).translate(-sf::Vector2f(pivot));
+    _attachmentBase.translate(_pos).rotate(float(_rot)).scale(_scale*mouthFit).translate(-sf::Vector2f(pivot));
 	_activeSprite->setOrigin(sf::Vector2f(pivot));
-	_activeSprite->setScale(sf::Vector2f(motionScale));
+	_activeSprite->setScale(sf::Vector2f(motionScale)*mouthFit);
 	_activeSprite->setPosition(sf::Vector2f( windowWidth / 2 + motionPos.x, windowHeight / 2 + motionPos.y ));
 	_activeSprite->setRotation(motionRot);
 	_activeSprite->SetColor(activeSpriteCol);
@@ -5453,9 +5466,74 @@ void LayerManager::LayerInfo::PostDraw()
 	}
 }
 
+int LayerManager::LayerInfo::ImportMouthFolder(const fs::path& folder){
+    std::error_code ec;std::vector<fs::path> files;
+    for(fs::directory_iterator it(folder,ec),end;!ec&&it!=end;it.increment(ec)){if(!it->is_regular_file(ec))continue;auto ext=it->path().extension().string();for(char& c:ext)c=char(std::tolower(static_cast<unsigned char>(c)));if(ext==".png")files.push_back(it->path());}
+    if(ec){_mouthImportStatus="Could not read the selected folder.";return 0;}
+    std::sort(files.begin(),files.end());unsigned loaded=0;bool idleLoaded=false;int count=0,failed=0;
+    for(const auto& path:files){int i=MaxMouthFileSlot(path.stem().string());if(i==-1||i==-2&&idleLoaded||i>=0&&(loaded&(1u<<i)))continue;auto type=i==-2?SP_IDLE:MaxMouthSprites[i];auto& slot=_sprites[type];auto replacement=std::make_shared<SpriteSheet>();
+        replacement->edgeFeather=slot->edgeFeather;replacement->edgeTrim=slot->edgeTrim;replacement->_offsetFromIdle=slot->_offsetFromIdle;
+        std::string error;replacement->LoadFromTexture(_parent->_textureMan,path.string(),1,1,1,1,{-1,-1},&error);if(!replacement->getTexture()){++failed;continue;}
+        replacement->setSmooth(_scaleFiltering);slot.sprite=replacement;slot.path=path.string();++count;if(i==-2)idleLoaded=true;else{loaded|=1u<<i;_mouthBank.targets[i].enabled=true;}
+    }
+    if(count){_expandedMouths=true;_matchMouthCanvas=true;_usePhonemes=true;_swapWhenTalking=true;if(_lipSource==0)_lipSource=2;_mouthPreview=-1;_bankSelector.Reset();}
+    _mouthImportStatus=count?"Imported "+std::to_string(count)+" images. Save your project to keep them.":"No matching mouth PNGs found. Extract the ZIP and choose a PNG inside its mouth folder.";
+    if(failed)_mouthImportStatus+=" "+std::to_string(failed)+" images could not be loaded.";
+    return count;
+}
+void LayerManager::LayerInfo::DrawMouthManager(bool scream,float imgBtnWidth,float animBtnWidth,sf::Color& btnColor,float uiScale){
+    ImGui::PushID(scream?"screamMouthBank":"mouthBank");
+    int& selected=scream?_screamMouthSelected:_mouthSelected;selected=std::clamp(selected,0,12);
+    if(!scream){
+        if(ImGui::Checkbox("Use expanded mouth set (13)",&_expandedMouths)){_bankSelector.Reset();_lipSelector.Reset();}
+        ImGui::Checkbox("Match mouth canvas sizes",&_matchMouthCanvas);
+        ImGui::TextWrapped("Use a dedicated mouth layer. Extract your ZIP, then select any mouth PNG to import the whole folder by filename.");
+        if(MaxUi::Button("Import mouth folder...",{-1,0}))_mouthImportOpen=true;
+        static imgui_ext::file_browser_modal browser("Select a PNG from the mouth folder");browser._acceptedExt={".png"};std::string chosen;
+        if(browser.render(_mouthImportOpen,chosen))ImportMouthFolder(fs::path(chosen).parent_path());
+        if(!_mouthImportStatus.empty())ImGui::TextWrapped("%s",_mouthImportStatus.c_str());
+    }else ImGui::TextWrapped("Optional scream variants. Empty slots reuse the corresponding normal mouth.");
+    ImGui::TextUnformatted("Mouth shape");ImGui::SetNextItemWidth(-1);
+    if(ImGui::BeginCombo("##mouthShape",MaxMouthDefinitions[selected].label)){
+        for(int i=0;i<13;++i){auto type=scream?MaxMouthScreamSprites[i]:MaxMouthSprites[i];std::string label=std::string(MaxMouthDefinitions[i].label)+(_sprites[type]->HasTexture()?"":" (empty)");if(ImGui::Selectable(label.c_str(),selected==i)){selected=i;if(_mouthPreview>=0){_mouthPreview=i;_mouthPreviewSeconds=3;}}}ImGui::EndCombo();
+    }
+    auto type=scream?MaxMouthScreamSprites[selected]:MaxMouthSprites[selected];
+    SpriteSelectGUI(type,std::max(imgBtnWidth,128*uiScale),animBtnWidth,btnColor,uiScale,false,!_separatePhonemeTints);
+    if(!scream){
+        ImGui::BeginDisabled(!_sprites[type]->HasTexture());
+        if(MaxUi::Button("Preview mouth for 3 seconds",{-1,0})){_mouthPreview=selected;_mouthPreviewSeconds=3;}
+        ImGui::EndDisabled();
+        if(_mouthPreview>=0&&MaxUi::Button("Return to live lip sync",{-1,0})){_mouthPreview=-1;_mouthPreviewSeconds=0;}
+        if(_expandedMouths){
+            auto& target=_mouthBank.targets[selected];if(ImGui::Checkbox("Include in automatic selection",&target.enabled))_bankSelector.Reset();
+            ImGui::TextWrapped("Camera/Combined can choose all loaded shapes. Audio uses broad sound families and opening levels, not exact recognition of 13 letters.");
+            auto& tracker=_parent->_faceTracker;
+            ImGui::BeginDisabled(!tracker.available||!tracker.mouth.Usable()||_bankCapture.slot>=0||_mouthCapture.slot>=0);
+            if(MaxUi::Button("Capture camera pose for this mouth",{-1,0})){_bankCapture.Start(selected);_mouthFrame=tracker.MouthFrame();_lipClock.restart();}
+            ImGui::EndDisabled();
+            if(_bankCapture.slot>=0)ImGui::TextWrapped("Hold the %s expression for 0.6 seconds...",MaxMouthDefinitions[_bankCapture.slot].label);
+            else if(_bankCapture.failed)ImGui::TextWrapped("Capture needs more tracked frames. Face the camera and try again.");
+            ImGui::TextUnformatted(target.captured?"Camera pose captured":"Using suggested camera target");
+            if(ImGui::TreeNode("Shape matching settings")){
+                const char* families[]={"Camera only","A family","E family","S family","P/B family","OO family"};const MaxLipShape masks[]={MaxLipShape::Idle,MaxLipShape::A,MaxLipShape::E,MaxLipShape::S,MaxLipShape::PB,MaxLipShape::OO};int family=0;for(int i=0;i<6;++i)if(target.family==masks[i])family=i;
+                ImGui::TextUnformatted("Audio hint");ImGui::SetNextItemWidth(-1);if(ImGui::Combo("##family",&family,families,6)){target.family=masks[family];_bankSelector.Reset();}
+                auto pose=_mouthBank.Pose(selected,_mouthCalibration);bool changed=false;
+                ImGui::TextUnformatted("Target opening");ImGui::SetNextItemWidth(-1);changed|=ImGui::SliderFloat("##opening",&pose.open,0,1,"%.3f");
+                ImGui::TextUnformatted("Target width");ImGui::SetNextItemWidth(-1);changed|=ImGui::SliderFloat("##width",&pose.width,.1f,1.5f,"%.3f");
+                changed|=ImGui::Checkbox("Use visible teeth/tongue cues",&pose.details);
+                if(pose.details){ImGui::TextUnformatted("Teeth cue");ImGui::SetNextItemWidth(-1);changed|=ImGui::SliderFloat("##teeth",&pose.teeth,0,1);ImGui::TextUnformatted("Tongue cue");ImGui::SetNextItemWidth(-1);changed|=ImGui::SliderFloat("##tongue",&pose.tongue,0,1);}
+                if(changed){target.pose=pose;target.captured=true;_bankSelector.Reset();}
+                if(MaxUi::Button("Reset this shape target",{-1,0})){target=MaxMouthBank{}.targets[selected];_bankSelector.Reset();}
+                ImGui::TreePop();
+            }
+        }
+    }
+    ImGui::PopID();
+}
+
 void LayerManager::LayerInfo::DrawLipSyncGUI(){
     const char* modes[]={"Audio","Camera","Combined"};
-    ImGui::TextUnformatted("Lip-sync source");ImGui::SetNextItemWidth(-1);if(ImGui::Combo("##lipSource",&_lipSource,modes,3))_lipSelector.Reset();
+    ImGui::TextUnformatted("Lip-sync source");ImGui::SetNextItemWidth(-1);if(ImGui::Combo("##lipSource",&_lipSource,modes,3)){_lipSelector.Reset();_bankSelector.Reset();}
     if(_lipSource==0)return;
     auto& tracker=_parent->_faceTracker;
     ImGui::TextWrapped("%s",tracker.status.c_str());
@@ -5541,28 +5619,7 @@ void LayerManager::LayerInfo::DetermineVisibleSprites(bool talking, bool screami
 		
 		if (_usePhonemes)
 		{
-			switch (phMask)
-			{
-			case PH_NONE:
-				break;
-			case PH_A:
-				activeType = SP_PH_A;
-				break;
-			case PH_E:
-				activeType = SP_PH_E;
-				break;
-			case PH_S:
-				activeType = SP_PH_S;
-				break;
-			case PH_P:
-				activeType = SP_PH_P;
-				break;
-			case PH_W:
-				activeType = SP_PH_W;
-				break;
-			default:
-				break;
-			}
+			activeType=MaxMouthSprite(static_cast<MaxLipShape>(phMask),false);
 		}
 
 		if(_separatePhonemeTints)
@@ -5591,28 +5648,7 @@ void LayerManager::LayerInfo::DetermineVisibleSprites(bool talking, bool screami
 
 		if (_usePhonemes)
 		{
-			switch (phMask)
-			{
-			case PH_NONE:
-				break;
-			case PH_A:
-				activeType = SP_SC_PH_A;
-				break;
-			case PH_E:
-				activeType = SP_SC_PH_E;
-				break;
-			case PH_S:
-				activeType = SP_SC_PH_S;
-				break;
-			case PH_P:
-				activeType = SP_SC_PH_P;
-				break;
-			case PH_W:
-				activeType = SP_SC_PH_W;
-				break;
-			default:
-				break;
-			}
+			activeType=MaxMouthSprite(static_cast<MaxLipShape>(phMask),true);
 		}
 
 		if (_separatePhonemeTints)
@@ -5625,7 +5661,8 @@ void LayerManager::LayerInfo::DetermineVisibleSprites(bool talking, bool screami
 
     // Missing optional mouth images must not make the character disappear.
     if(activeType!=SP_IDLE&&!_sprites[activeType]->HasTexture()){
-        if(phMask==PH_P)activeType=SP_IDLE;
+        if(screaming&&phMask!=PH_NONE&&_sprites[MaxMouthSprite(static_cast<MaxLipShape>(phMask))]->HasTexture())activeType=MaxMouthSprite(static_cast<MaxLipShape>(phMask));
+        else if(phMask==PH_P)activeType=SP_IDLE;
         else if(screaming&&_sprites[SP_SCREAM]->HasTexture())activeType=SP_SCREAM;
         else if(talking&&_sprites[SP_TALK]->HasTexture())activeType=SP_TALK;
         else activeType=SP_IDLE;
@@ -6160,51 +6197,7 @@ bool LayerManager::LayerInfo::DrawGUI(ImGuiStyle& style, int layerID)
 					ImGui::Checkbox("Separate Tints", &_separatePhonemeTints);
 					ToolTip("Define separate tint colours for each phoneme", &_parent->_appConfig->_hoverTimer);
 
-					if (_usePhonemes)
-					{
-						if(ImGui::BeginTable((_id + "ph_tab_1").c_str(), 5, ImGuiTableFlags_SizingStretchProp))
-						{
-							ImGui::TableSetupColumn("##padL", ImGuiTableColumnFlags_WidthStretch);
-							ImGui::TableSetupColumn("##1", ImGuiTableColumnFlags_WidthFixed, UIUnit * 6);
-							ImGui::TableSetupColumn("##2", ImGuiTableColumnFlags_WidthFixed, UIUnit * 6);
-							ImGui::TableSetupColumn("##3", ImGuiTableColumnFlags_WidthFixed, UIUnit * 6);
-							ImGui::TableSetupColumn("##padR", ImGuiTableColumnFlags_WidthStretch);
-
-							ImGui::TableNextColumn();
-							ImGui::TableNextColumn();
-							// A vowel
-							SpriteSelectGUI(SP_PH_A, smlImageBtnWidth, animBtnWidth, btnColor, uiScale, false, !_separatePhonemeTints);
-
-							ImGui::TableNextColumn();
-							// E vowel
-							SpriteSelectGUI(SP_PH_E, smlImageBtnWidth, animBtnWidth, btnColor, uiScale, false, !_separatePhonemeTints);
-
-							ImGui::TableNextColumn();
-							// S sibilance
-							SpriteSelectGUI(SP_PH_S, smlImageBtnWidth, animBtnWidth, btnColor, uiScale, false, !_separatePhonemeTints);
-
-							ImGui::EndTable();
-						}
-
-						if(ImGui::BeginTable((_id + "ph_tab_2").c_str(), 4, ImGuiTableFlags_SizingStretchProp))
-						{
-							ImGui::TableSetupColumn("##padL", ImGuiTableColumnFlags_WidthStretch);
-							ImGui::TableSetupColumn("##1", ImGuiTableColumnFlags_WidthFixed, UIUnit * 6);
-							ImGui::TableSetupColumn("##2", ImGuiTableColumnFlags_WidthFixed, UIUnit * 6);
-							ImGui::TableSetupColumn("##padR", ImGuiTableColumnFlags_WidthStretch);
-
-							ImGui::TableNextColumn();
-							ImGui::TableNextColumn();
-							// P/B plosive
-							SpriteSelectGUI(SP_PH_P, smlImageBtnWidth, animBtnWidth, btnColor, uiScale, false, !_separatePhonemeTints);
-
-							ImGui::TableNextColumn();
-							// P/B plosive
-							SpriteSelectGUI(SP_PH_W, smlImageBtnWidth, animBtnWidth, btnColor, uiScale, false, !_separatePhonemeTints);
-
-							ImGui::EndTable();
-						}
-					}
+					if (_usePhonemes)DrawMouthManager(false,smlImageBtnWidth,animBtnWidth,btnColor,uiScale);
 
 					BetterUnindent(_id + "talk");
 				}
@@ -6222,51 +6215,7 @@ bool LayerManager::LayerInfo::DrawGUI(ImGuiStyle& style, int layerID)
 
 					SpriteSelectGUI(SP_SCREAM, imgBtnWidth, animBtnWidth, btnColor, uiScale);
 
-					if (_usePhonemes)
-					{
-						if (ImGui::BeginTable((_id + "phsc_tab_1").c_str(), 5, ImGuiTableFlags_SizingStretchProp))
-						{
-							ImGui::TableSetupColumn("##padL", ImGuiTableColumnFlags_WidthStretch);
-							ImGui::TableSetupColumn("##1", ImGuiTableColumnFlags_WidthFixed, UIUnit * 6);
-							ImGui::TableSetupColumn("##2", ImGuiTableColumnFlags_WidthFixed, UIUnit * 6);
-							ImGui::TableSetupColumn("##3", ImGuiTableColumnFlags_WidthFixed, UIUnit * 6);
-							ImGui::TableSetupColumn("##padR", ImGuiTableColumnFlags_WidthStretch);
-
-							ImGui::TableNextColumn();
-							ImGui::TableNextColumn();
-							// A vowel
-							SpriteSelectGUI(SP_SC_PH_A, smlImageBtnWidth, animBtnWidth, btnColor, uiScale, false, !_separatePhonemeTints);
-
-							ImGui::TableNextColumn();
-							// E vowel
-							SpriteSelectGUI(SP_SC_PH_E, smlImageBtnWidth, animBtnWidth, btnColor, uiScale, false, !_separatePhonemeTints);
-
-							ImGui::TableNextColumn();
-							// S sibilance
-							SpriteSelectGUI(SP_SC_PH_S, smlImageBtnWidth, animBtnWidth, btnColor, uiScale, false, !_separatePhonemeTints);
-
-							ImGui::EndTable();
-						}
-
-						if (ImGui::BeginTable((_id + "phsc_tab_2").c_str(), 4, ImGuiTableFlags_SizingStretchProp))
-						{
-							ImGui::TableSetupColumn("##padL", ImGuiTableColumnFlags_WidthStretch);
-							ImGui::TableSetupColumn("##1", ImGuiTableColumnFlags_WidthFixed, UIUnit * 6);
-							ImGui::TableSetupColumn("##2", ImGuiTableColumnFlags_WidthFixed, UIUnit * 6);
-							ImGui::TableSetupColumn("##padR", ImGuiTableColumnFlags_WidthStretch);
-
-							ImGui::TableNextColumn();
-							ImGui::TableNextColumn();
-							// P/B plosive
-							SpriteSelectGUI(SP_SC_PH_P, smlImageBtnWidth, animBtnWidth, btnColor, uiScale, false, !_separatePhonemeTints);
-
-							ImGui::TableNextColumn();
-							// P/B plosive
-							SpriteSelectGUI(SP_SC_PH_W, smlImageBtnWidth, animBtnWidth, btnColor, uiScale, false, !_separatePhonemeTints);
-
-							ImGui::EndTable();
-						}
-					}
+					if (_usePhonemes)DrawMouthManager(true,smlImageBtnWidth,animBtnWidth,btnColor,uiScale);
 
 					AddResetButton("screamThresh", _screamThreshold, 0.15f, _parent->_appConfig, &style, true, &barPos);
 					ImVec2 barPos = ImGui::GetCursorScreenPos();
@@ -7673,7 +7622,7 @@ void LayerManager::LayerInfo::SpriteSelectGUI(SpriteType UISprite, float imgBtnW
 {
 
 	std::string spriteTitle = g_spriteNames[UISprite];
-	std::string sectionID = std::string(spriteTitle) + "import";
+	std::string sectionID = std::string(spriteTitle) + "import"+std::to_string(UISprite);
 	std::string imgID = std::string(spriteTitle) + "imgbtn";
 	std::string animID = std::string(spriteTitle) + "animbtn";
 	std::string tintid = "##" + std::string(spriteTitle) + "tint";

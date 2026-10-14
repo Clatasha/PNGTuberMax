@@ -28,7 +28,7 @@ jobs:
       - name: Configure Windows x64
         run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 "-DCMAKE_POLICY_VERSION_MINIMUM=3.5" -DPNGMAX_TEST_OBS_CAPTURE=ON
       - name: Build app and frame test
-        run: cmake --build build --config Release --target RahiTuber MaxCameraFrameTests MaxWorkspaceTests MaxPlushMathTests MaxPlushRenderTests MaxEditorTests MaxPlushRasterTests MaxCameraNegotiationTests MaxObsCameraTests MaxRigTests MaxFaceBridgeTests MaxSurfaceRenderTests MaxFaceCropTests MaxWindowTransparencyTests MaxPreciseFaceRenderTests MaxPreviewInputTests MaxSpriteEdgeTests MaxSpriteEdgeRenderTests MaxLipSyncTests --parallel 4
+        run: cmake --build build --config Release --target RahiTuber MaxCameraFrameTests MaxWorkspaceTests MaxPlushMathTests MaxPlushRenderTests MaxEditorTests MaxPlushRasterTests MaxCameraNegotiationTests MaxObsCameraTests MaxRigTests MaxFaceBridgeTests MaxSurfaceRenderTests MaxFaceCropTests MaxWindowTransparencyTests MaxPreciseFaceRenderTests MaxPreviewInputTests MaxSpriteEdgeTests MaxSpriteEdgeRenderTests MaxLipSyncTests MaxMouthBankTests --parallel 4
       - name: Software OpenGL for rendering tests only
         shell: powershell
         run: |
@@ -71,6 +71,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'MaxSpriteEdgeRenderTests.exe failed.' }
           .\build\Release\MaxLipSyncTests.exe
           if ($LASTEXITCODE -ne 0) { throw 'MaxLipSyncTests.exe failed.' }
+          .\build\Release\MaxMouthBankTests.exe
+          if ($LASTEXITCODE -ne 0) { throw 'MaxMouthBankTests.exe failed.' }
       - name: Package preview
         shell: powershell
         run: .\scripts\Package-Windows.ps1
@@ -143,7 +145,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: PNGTuberMax-0.1.17-Camera-Lip-Sync-Update
-          path: dist/updates/PNGTuberMax-Camera-Lip-Sync-Update.zip
+          name: PNGTuberMax-0.1.18-Expanded-Mouths-Update
+          path: dist/updates/PNGTuberMax-Expanded-Mouths-Update.zip
           if-no-files-found: error
           retention-days: 90

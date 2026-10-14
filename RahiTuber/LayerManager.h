@@ -9,6 +9,7 @@
 
 #include "SpriteSheet.h"
 #include "MaxFaceTracker.h"
+#include "MaxMouthBank.h"
 
 #include "tinyxml2.h"
 
@@ -36,7 +37,8 @@ enum PhonemeMask : int
 	PH_E = 1 << 1,
 	PH_S = 1 << 2,
 	PH_P = 1 << 3,
-	PH_W = 1 << 4
+	PH_W = 1 << 4,
+    PH_C=1<<5,PH_F=1<<6,PH_G=1<<7,PH_L=1<<8,PH_N=1<<9,PH_Q=1<<10,PH_T=1<<11,PH_U=1<<12
 };
 
 class EffectManager;
@@ -111,15 +113,21 @@ enum SpriteType : int
 	SP_SC_PH_W,
 
     SP_PLUSH_BACK,
+    SP_PH_C,SP_PH_F,SP_PH_G,SP_PH_L,SP_PH_N,SP_PH_Q,SP_PH_T,SP_PH_U,
+    SP_SC_PH_C,SP_SC_PH_F,SP_SC_PH_G,SP_SC_PH_L,SP_SC_PH_N,SP_SC_PH_Q,SP_SC_PH_T,SP_SC_PH_U,
 	SP_END
 };
 
 static const char* const g_spriteNames[SP_END] = {
-	"Idle", "Talk", "Blink", "TalkBlink", "Scream", "Open 'A'", "Wide 'E'", "Sibilance 'S'", "Plosive 'P/B'", "Narrow 'oo'", "Open 'A'", "Wide 'E'", "Sibilance 'S'", "Plosive 'P/B'", "Narrow 'oo'", "Back view",
+	"Idle", "Talk", "Blink", "TalkBlink", "Scream", "Open 'A'", "Wide 'E'", "Sibilance 'S'", "Plosive 'P/B'", "Narrow 'oo'", "Open 'A'", "Wide 'E'", "Sibilance 'S'", "Plosive 'P/B'", "Narrow 'oo'", "Back view", "C", "F", "G", "L", "N", "Q", "T", "U", "C (scream)", "F (scream)", "G (scream)", "L (scream)", "N (scream)", "Q (scream)", "T (scream)", "U (scream)",
 };
 static const char* const g_spriteElements[SP_END] = {
-	"Idle", "Talk", "Blink", "TalkBlink", "Scream", "Open", "Wide", "Sibilance", "Plosive", "Narrow", "OpenScream", "WideScream", "SibilanceScream", "PlosiveScream", "NarrowScream", "PlushBack"
+	"Idle", "Talk", "Blink", "TalkBlink", "Scream", "Open", "Wide", "Sibilance", "Plosive", "Narrow", "OpenScream", "WideScream", "SibilanceScream", "PlosiveScream", "NarrowScream", "PlushBack", "MouthC", "MouthF", "MouthG", "MouthL", "MouthN", "MouthQ", "MouthT", "MouthU", "MouthCScream", "MouthFScream", "MouthGScream", "MouthLScream", "MouthNScream", "MouthQScream", "MouthTScream", "MouthUScream"
 };
+
+inline constexpr std::array<SpriteType,13> MaxMouthSprites{{SP_PH_A,SP_PH_P,SP_PH_C,SP_PH_E,SP_PH_F,SP_PH_G,SP_PH_L,SP_PH_N,SP_PH_W,SP_PH_Q,SP_PH_S,SP_PH_T,SP_PH_U}};
+inline constexpr std::array<SpriteType,13> MaxMouthScreamSprites{{SP_SC_PH_A,SP_SC_PH_P,SP_SC_PH_C,SP_SC_PH_E,SP_SC_PH_F,SP_SC_PH_G,SP_SC_PH_L,SP_SC_PH_N,SP_SC_PH_W,SP_SC_PH_Q,SP_SC_PH_S,SP_SC_PH_T,SP_SC_PH_U}};
+inline SpriteType MaxMouthSprite(MaxLipShape shape,bool scream=false){int i=MaxMouthIndex(shape);return i>=0?(scream?MaxMouthScreamSprites[i]:MaxMouthSprites[i]):(scream?SP_SCREAM:SP_TALK);}
 
 class LayerManager
 {
@@ -234,6 +242,13 @@ public:
         MaxMouthCalibration _mouthCalibration;MaxLipSelector _lipSelector;MaxLipResult _lipResult;MaxMouthCapture _mouthCapture;
         sf::Clock _lipClock;unsigned _mouthFrame=0;
         void DrawLipSyncGUI();
+        bool _expandedMouths=false,_matchMouthCanvas=false,_mouthImportOpen=false;
+        MaxMouthBank _mouthBank;MaxMouthBankSelector _bankSelector;MaxMouthCapture _bankCapture;
+        float _mouthPreviewSeconds=0;
+        int _mouthSelected=0,_screamMouthSelected=0,_mouthPreview=-1;
+        std::string _mouthImportStatus;
+        int ImportMouthFolder(const fs::path& folder);
+        void DrawMouthManager(bool scream,float imgBtnWidth,float animBtnWidth,sf::Color& btnColor,float uiScale);
 		bool _separatePhonemeTints = false;
 
 		bool _useBlinkFrame = false;
@@ -347,7 +362,7 @@ public:
 				if (sp.second.importOpen || sp.second.spriteOpen)
 					return true;
 			}
-			return	_renamePopupOpen || _inheritanceGraphOpen;
+			return	_mouthImportOpen || _renamePopupOpen || _inheritanceGraphOpen;
 		}
 
 		void CloseAllPopups()
@@ -356,7 +371,7 @@ public:
 			{
 				sp.second.importOpen = sp.second.spriteOpen = false;
 			}
-			_renamePopupOpen = _inheritanceGraphOpen = false;
+			_mouthImportOpen=false;_mouthPreview=-1;_renamePopupOpen = _inheritanceGraphOpen = false;
 		}
 
 		void CalculateLayerDepth();

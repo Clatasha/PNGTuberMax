@@ -2260,7 +2260,7 @@ public:
 		{
 			phMask = PH_S;
 		}
-		if (audioConfig->_bassShortAverage > audioConfig->_bassShortAverage* eTolerance && audioConfig->_midShortAverage > audioConfig->_bassShortAverage* eTolerance && audioConfig->_midShortAverage > audioConfig->_trebleShortAverage)
+		if (MaxAudioWideVowel(audioConfig->_bassShortAverage,audioConfig->_midShortAverage,audioConfig->_trebleShortAverage,eTolerance))
 		{
 			phMask = PH_E;
 		}

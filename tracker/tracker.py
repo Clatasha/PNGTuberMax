@@ -37,6 +37,25 @@ def mouth_measurements(landmarks, frame_width, frame_height, pose=(0,0,0)):
     good=0<=opening<=1.5 and .1<=width<=2
     return (opening,width,1. if good else 0.)
 
+INNER_LIPS=[78,95,88,178,87,14,317,402,318,324,308,415,310,311,312,13,82,81,80,191]
+
+def mouth_visual_cues(frame, points, opening):
+    # Appearance cues, not speech recognition. Limit sampling to the inner lip
+    # polygon so surrounding skin and the outer red lip do not dominate.
+    if opening<.008:return (0.,0.,0.)
+    polygon=np.asarray([points[i] for i in INNER_LIPS],np.float32)
+    if not np.isfinite(polygon).all():return (0.,0.,0.)
+    x,y,w,h=cv2.boundingRect(polygon);x0=max(0,x);y0=max(0,y);x1=min(frame.shape[1],x+w);y1=min(frame.shape[0],y+h)
+    if x1<=x0 or y1<=y0:return (0.,0.,0.)
+    mask=np.zeros((y1-y0,x1-x0),np.uint8)
+    cv2.fillPoly(mask,[np.rint(polygon-[x0,y0]).astype(np.int32)],255)
+    pixels=frame[y0:y1,x0:x1][mask>0].astype(np.float32)
+    if len(pixels)<12:return (0.,0.,0.)
+    blue,green,red=pixels.T
+    light=(pixels.min(axis=1)>115)&(pixels.max(axis=1)-pixels.min(axis=1)<55)
+    reddish=(red>70)&(red>green*1.25)&(red>blue*1.2)
+    return (float(light.mean()),float(reddish.mean()),1.)
+
 def cutout(frame, points, indices, contour=None, previous=None, roll=0.):
     pts = np.array([points[i] for i in indices], dtype=np.float32)
     # Measure the crop in a level face basis, then map its corners back to the
@@ -118,6 +137,18 @@ def mouth_test():
     bad=points.copy();bad[13,0]=float('nan');assert measure(bad)[2]==0
     print('PASS: camera mouth opening/width invariant to synthetic roll, yaw and pitch; occluded/small/invalid face rejection')
 
+def cue_test():
+    frame=np.full((160,160,3),(30,30,220),np.uint8);points=np.full((478,2),80.,np.float32)
+    theta=np.linspace(0,2*np.pi,len(INNER_LIPS),endpoint=False)
+    points[INNER_LIPS]=np.column_stack((80+30*np.cos(theta),80+15*np.sin(theta)))
+    frame[60:100,45:80]=(210,210,210)
+    teeth,tongue,valid=mouth_visual_cues(frame,points,.15)
+    assert valid and teeth>.3 and tongue>.3,(teeth,tongue)
+    changed=frame.copy();changed[:50]=(250,250,250);changed[110:]=(250,250,250)
+    assert np.allclose(mouth_visual_cues(changed,points,.15),(teeth,tongue,valid))
+    assert mouth_visual_cues(frame,points,0)==(0.,0.,0.)
+    print('PASS: inner-lip teeth/red appearance cues exclude surrounding skin and closed mouths')
+
 def self_test():
     with mp.solutions.face_mesh.FaceMesh(static_image_mode=True,refine_landmarks=True,max_num_faces=1) as detector:
         assert not detector.process(np.zeros((128,128,3),np.uint8)).multi_face_landmarks
@@ -133,6 +164,7 @@ def self_test():
     assert np.count_nonzero(closed>128)<np.count_nonzero(opened>128)/4
     gyro_test()
     mouth_test()
+    cue_test()
     print('PASS: eyelid/open-mouth contours preserve expression and exclude surrounding skin')
     print('PASS: bundled face model loads; full-resolution source crops for the in-app mask editor')
 
@@ -148,14 +180,14 @@ def run(args):
     if camera is not None:
         camera.set(cv2.CAP_PROP_FRAME_WIDTH,640);camera.set(cv2.CAP_PROP_FRAME_HEIGHT,480)
     sequence=0
-    def publish(status, pose=(0,0,0), crops=None, fields=None, mouth=(0,0,0)):
+    def publish(status, pose=(0,0,0), crops=None, fields=None, mouth=(0,0,0), details=(0,0,0)):
         nonlocal sequence
         sequence+=1
-        header=struct.pack('<IIIIfff',0x52494734,sequence,status,0,*pose).ljust(64,b'\0')
+        header=struct.pack('<IIIIfff',0x52494735,sequence,status,0,*pose).ljust(64,b'\0')
         if kernel.WaitForSingleObject(mutex,100) in (0,128):
             try:
                 memory.seek(0);memory.write(header[:28])
-                memory.seek(32);memory.write(struct.pack('<fff',*mouth))
+                memory.seek(32);memory.write(struct.pack('<ffffff',*mouth,*details))
                 if crops:
                     memory.seek(64);memory.write(b''.join(crops))
                     if fields:memory.write(b''.join(fields))
@@ -167,7 +199,7 @@ def run(args):
         pixels=bytes((35,70,100,128))*(256*192)
         field=distance_field([(60,96),(90,72),(166,72),(196,96),(166,120),(90,120)])
         while active():
-            if sequence%75<45:publish(1,(12.,7.,-9.),[pixels]*3,[field]*3,(.24,.64,1.))
+            if sequence%75<45:publish(1,(12.,7.,-9.),[pixels]*3,[field]*3,(.24,.64,1.),(.5,.25,1.))
             else:publish(2)
             time.sleep(1/30)
         memory.close();kernel.CloseHandle(ctypes.c_void_p(mutex));return
@@ -205,7 +237,8 @@ def run(args):
                 for i in range(3):
                     image,field,polygon=cutout(frame,points,regions[i],CONTOURS[i],previous[i],roll)
                     crops.append(image);fields.append(field);previous[i]=polygon
-                publish(1,pose,crops,fields,mouth_measurements(landmarks,w,h,pose))
+                measure=mouth_measurements(landmarks,w,h,pose)
+                publish(1,pose,crops,fields,measure,mouth_visual_cues(frame,points,measure[0]) if measure[2] else (0,0,0))
     finally:
         camera.release();memory.close();kernel.CloseHandle(ctypes.c_void_p(mutex))
 

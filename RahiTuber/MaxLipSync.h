@@ -6,14 +6,16 @@
 // Values are ratios to the eye span, measured in the face's 3D landmark space.
 struct MaxMouthSample {
     float open=0, width=.7f;
-    bool valid=false;
-    bool Usable() const { return valid && std::isfinite(open) && std::isfinite(width) && open>=0 && open<=1.5f && width>=.1f && width<=2.f; }
+    bool valid=false;float teeth=0,tongue=0;bool details=false;
+    bool Usable() const { return valid && std::isfinite(open) && std::isfinite(width) && open>=0 && open<=1.5f && width>=.1f && width<=2.f && (!details||(std::isfinite(teeth)&&std::isfinite(tongue)&&teeth>=0&&teeth<=1&&tongue>=0&&tongue<=1)); }
 };
+// Mid-dominant audio must compare against other bands, never bass against itself.
+inline bool MaxAudioWideVowel(float bass,float mid,float treble,float tolerance){return mid>bass*tolerance&&mid>treble;}
 enum class MaxLipSource { Audio=0, Camera=1, Combined=2 };
 // Sprite mask values match the app's five existing phoneme slots.
-enum class MaxLipShape { Idle=0, A=1, E=2, S=4, PB=8, OO=16 };
+enum class MaxLipShape { Idle=0, A=1, E=2, S=4, PB=8, OO=16, C=32, F=64, G=128, L=256, N=512, Q=1024, T=2048, U=4096 };
 inline const char* MaxLipName(MaxLipShape shape) {
-    switch(shape){case MaxLipShape::A:return "A";case MaxLipShape::E:return "E";case MaxLipShape::S:return "S";case MaxLipShape::PB:return "P/B";case MaxLipShape::OO:return "OO";default:return "Idle";}
+    switch(shape){case MaxLipShape::A:return "A";case MaxLipShape::E:return "E";case MaxLipShape::S:return "S";case MaxLipShape::PB:return "P/B";case MaxLipShape::OO:return "OO";case MaxLipShape::C:return "C";case MaxLipShape::F:return "F";case MaxLipShape::G:return "G";case MaxLipShape::L:return "L";case MaxLipShape::N:return "N";case MaxLipShape::Q:return "Q";case MaxLipShape::T:return "T";case MaxLipShape::U:return "U";default:return "Idle";}
 }
 struct MaxMouthCalibration {
     // Closed, tall/open A, wide E, rounded OO. S is a narrow neutral opening.
@@ -63,14 +65,19 @@ public:
 };
 // Average several fresh camera frames; repeated render frames never count twice.
 struct MaxMouthCapture {
-    int slot=-1,count=0;float elapsed=0,open=0,width=0;bool failed=false;
-    void Start(int index){slot=index;count=0;elapsed=open=width=0;failed=false;}
+    int slot=-1,count=0,detailCount=0;float elapsed=0,open=0,width=0,teeth=0,tongue=0;bool failed=false;
+    void Start(int index){slot=index;count=detailCount=0;elapsed=open=width=teeth=tongue=0;failed=false;}
+    int FeedSample(MaxMouthSample sample,bool fresh,float dt,MaxMouthSample& result){
+        if(slot<0)return 0;elapsed+=std::clamp(dt,0.f,.1f);
+        if(fresh&&sample.Usable()){open+=sample.open;width+=sample.width;++count;if(sample.details){teeth+=sample.teeth;tongue+=sample.tongue;++detailCount;}}
+        if(elapsed<.6f)return 0;
+        failed=count<5;slot=-1;
+        if(failed)return -1;
+        result={open/count,width/count,true,detailCount?teeth/detailCount:0,detailCount?tongue/detailCount:0,detailCount>=5};return 1;
+    }
     bool Feed(MaxMouthSample sample,bool fresh,float dt,MaxMouthCalibration& calibration){
-        if(slot<0)return false;elapsed+=std::clamp(dt,0.f,.1f);
-        if(fresh&&sample.Usable()){open+=sample.open;width+=sample.width;++count;}
-        if(elapsed<.6f)return false;
-        failed=count<5;
-        if(!failed){calibration.poses[slot]={open/count,width/count,true};calibration.captured|=1u<<slot;}
-        slot=-1;return !failed;
+        int index=slot;MaxMouthSample result;
+        if(FeedSample(sample,fresh,dt,result)!=1)return false;
+        calibration.poses[index]=result;calibration.captured|=1u<<index;return true;
     }
 };

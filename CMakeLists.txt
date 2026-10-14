@@ -154,3 +154,6 @@ target_link_libraries(MaxSpriteEdgeRenderTests PRIVATE ${MAX_EDITOR_LIBRARIES})
 
 add_executable(MaxLipSyncTests tests/LipSyncTests.cpp)
 target_compile_features(MaxLipSyncTests PRIVATE cxx_std_17)
+
+add_executable(MaxMouthBankTests tests/MouthBankTests.cpp)
+target_compile_features(MaxMouthBankTests PRIVATE cxx_std_17)

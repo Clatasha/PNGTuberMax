@@ -4,6 +4,7 @@
 #include <limits>
 static void check(bool b,const char* why){if(!b)throw std::runtime_error(why);}
 int main(){try{
+ check(MaxAudioWideVowel(1,8,2,3)&&!MaxAudioWideVowel(8,1,2,3),"Mid-dominant E audio is rejected by a bass self-comparison");
  MaxMouthCalibration c;MaxLipSelector s;
  auto pick=[&](MaxMouthSample m,MaxLipSource source=MaxLipSource::Camera,MaxLipShape audio=MaxLipShape::A,bool speech=false,float hold=0.f){return s.Update(source,m,c,audio,speech,.7f,1.f/60,hold);};
  check(pick(c.poses[0]).shape==MaxLipShape::Idle,"Closed camera mouth should be idle");
