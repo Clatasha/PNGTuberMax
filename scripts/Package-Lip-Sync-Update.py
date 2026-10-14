@@ -11,7 +11,10 @@ pe=struct.unpack_from('<I',exe,0x3c)[0]
 assert exe[pe:pe+4]==b'PE\0\0' and struct.unpack_from('<H',exe,pe+4)[0]==0x8664
 output=root/'dist/updates/PNGTuberMax-Expanded-Mouths-Update.zip'
 output.parent.mkdir(parents=True,exist_ok=True)
-readme="""PNGTuber Max by Clatasha - 0.1.18 Expanded Mouths Update
+readme="""PNGTuber Max by Clatasha - 0.1.19 Expanded Mouths Update
+
+UI FIXES
+Compact edge-blending popup, layer-delete confirmation and mouth filename help.
 
 INSTALL
 Close PNGTuber Max. Extract this ZIP into your current app folder.

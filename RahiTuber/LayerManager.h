@@ -344,6 +344,7 @@ public:
 		float _alphaClip = 0.0;
 
 		bool _renamePopupOpen = false;
+        bool _deletePopupOpen = false;
 		bool _renameFirstOpened = false;
 		std::string _renamingString = "";
 
@@ -363,7 +364,7 @@ public:
 				if (sp.second.importOpen || sp.second.spriteOpen)
 					return true;
 			}
-			return	_mouthImportOpen || _renamePopupOpen || _inheritanceGraphOpen;
+			return	_deletePopupOpen || _mouthImportOpen || _renamePopupOpen || _inheritanceGraphOpen;
 		}
 
 		void CloseAllPopups()
@@ -372,7 +373,7 @@ public:
 			{
 				sp.second.importOpen = sp.second.spriteOpen = false;
 			}
-			_mouthImportOpen=false;_mouthPreview=-1;_renamePopupOpen = _inheritanceGraphOpen = false;
+			_deletePopupOpen=false;_mouthImportOpen=false;_mouthPreview=-1;_renamePopupOpen = _inheritanceGraphOpen = false;
 		}
 
 		void CalculateLayerDepth();

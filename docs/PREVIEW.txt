@@ -1,4 +1,4 @@
-PNGTUBER MAX by Clatasha — 0.1.18 DEVELOPMENT PREVIEW
+PNGTUBER MAX by Clatasha — 0.1.19 DEVELOPMENT PREVIEW
 
 Extract the complete folder and open PNGTuberMax.exe. Keep the resources and DLLs together.
 Requires Windows 10/11 x64 with .NET Framework 4.8. No OBS or another PNGTuber app is needed.
@@ -151,6 +151,6 @@ Each sprite slot has Edges controls for exterior-outline feather and inward trim
 0.1.17 CAMERA-ASSISTED LIP SYNC
 More Talk settings now includes Audio, Camera and Combined sources for the existing five mouth shapes. Enable Use Talk Sprite and Phoneme Detection on the mouth layer. Start the webcam, then optionally capture closed, tall/open, wide and rounded shapes in Mouth calibration. Shape smoothing prevents rapid switching; closed lips respond immediately. Mode, smoothing and calibration save per layer. Camera modes fall back to audio when tracking is lost; missing images fall back to Talk/Idle. The app and tracker.py must be updated together (RIG4 mouth measurement contract).
 
-0.1.18 EXPANDED MOUTH SHAPES
+0.1.19 EXPANDED MOUTH SHAPES
 More Talk settings has 13 slots: A, B/P, C, E, F, G, L, N, OO, Q, S, T and U, plus the regular Idle image. Import mouth folder maps extracted PNG filenames and enables canvas matching for mixed sizes. Existing projects retain the original five-shape selector unless expanded selection is enabled. Camera targets can be captured per shape and use optional inner-mouth light/red appearance cues in addition to opening and width. Audio remains broad family matching. All slots support individual edges and save/load; optional scream variants reuse normal mouths when empty. Update app and tracker.py together (RIG5 contract).
 The E audio-family check now compares the mid band with bass/treble instead of comparing bass against itself.

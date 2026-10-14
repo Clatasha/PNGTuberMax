@@ -145,7 +145,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: PNGTuberMax-0.1.18-Expanded-Mouths-Update
+          name: PNGTuberMax-0.1.19-Expanded-Mouths-Update
           path: dist/updates/PNGTuberMax-Expanded-Mouths-Update.zip
           if-no-files-found: error
           retention-days: 90

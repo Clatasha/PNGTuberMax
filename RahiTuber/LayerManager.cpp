@@ -3622,7 +3622,7 @@ void LayerManager::LayerInfo::SetUnloadingTimer(int timer)
 void LayerManager::HandleHotkey(const sf::Event& evt, bool keyDown)
 {
 	for (auto& l : _layers)
-		if (l._renamePopupOpen)
+		if (l._renamePopupOpen || l._deletePopupOpen)
 			return;
 
 	sf::Keyboard::Key key = evt.key.code;
@@ -3786,7 +3786,7 @@ void LayerManager::CheckHotkeys()
 		return;
 
 	for (auto& l : _layers)
-		if (l._renamePopupOpen)
+		if (l._renamePopupOpen || l._deletePopupOpen)
 			return;
 
 	float talkFactor = 0;
@@ -5496,6 +5496,7 @@ void LayerManager::LayerInfo::DrawMouthManager(bool scream,float imgBtnWidth,flo
         ImGui::Checkbox("Match mouth canvas sizes",&_matchMouthCanvas);
         ImGui::TextWrapped("Use a dedicated mouth layer. Extract your ZIP, then select any mouth PNG to import the whole folder by filename.");
         if(MaxUi::Button("Import mouth folder...",{-1,0}))_mouthImportOpen=true;
+        ToolTip("Extract the ZIP first, then select any PNG in the folder.\nUse mouth_A.png, mouth_B.png, mouth_C.png, mouth_E.png, mouth_F.png,\nmouth_G.png, mouth_L.png, mouth_N.png, mouth_OO.png, mouth_Q.png,\nmouth_S.png, mouth_T.png, mouth_U.png and idle.png.\nLetter-only names such as A.png also work. Names ignore upper/lower case.\nP, PB or P_B can replace B; W can replace OO; neutral can replace idle.\nUnrecognised filenames are skipped.",&_parent->_appConfig->_hoverTimer);
         static imgui_ext::file_browser_modal browser("Select a PNG from the mouth folder");browser._acceptedExt={".png"};std::string chosen;
         if(browser.render(_mouthImportOpen,chosen))ImportMouthFolder(fs::path(chosen).parent_path());
         if(!_mouthImportStatus.empty())ImGui::TextWrapped("%s",_mouthImportStatus.c_str());
@@ -5861,6 +5862,7 @@ bool LayerManager::LayerInfo::DrawGUI(ImGuiStyle& style, int layerID)
 	sf::Color btnColor = toSFColor(col);
 
 	bool allowContinue = true;
+    bool deleteConfirmed = false;
 
 	std::vector<int> toRemove;
 	for (int l = 0; l < _folderContents.size(); l++)
@@ -6999,13 +7001,25 @@ bool LayerManager::LayerInfo::DrawGUI(ImGuiStyle& style, int layerID)
 		ImGui::PushID("deleteBtn"); {
 			if (MaxUi::IconButton("delbtn", *_delIcon, headerBtnSize, sf::Color::Transparent, sf::Color(255, 200, 170)))
 			{
-				allowContinue = false;
-				_parent->RemoveLayer(this);
+                _deletePopupOpen = true;
+                ImGui::OpenPopup("Delete Layer?");
 			}
 			ToolTip("Delete the layer", &_parent->_appConfig->_hoverTimer);
-		}ImGui::PopID();//deletebtn
+		} // Keep the delete popup in the same ID scope as its button.
 
-		ImGui::PopStyleColor(4);
+        ImGui::PopStyleColor(4);
+        ImGui::SetNextWindowSize({360*uiScale,0},ImGuiCond_Always);
+        if(ImGui::BeginPopupModal("Delete Layer?",nullptr,ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize)){
+            ImGui::TextWrapped("Delete %s?",ANSIToUTF8(_name).c_str());
+            ImGui::TextWrapped(_isFolder ? "The folder will be removed. Its layers will be kept." : "This layer and its settings will be removed. Unsaved changes cannot be recovered.");
+            if(MaxUi::Button("Cancel")){_deletePopupOpen=false;ImGui::CloseCurrentPopup();}
+            ImGui::SetItemDefaultFocus();
+            ImGui::SameLine();
+            if(MaxUi::Button("Delete layer")){deleteConfirmed=true;_deletePopupOpen=false;ImGui::CloseCurrentPopup();}
+            if(ImGui::IsKeyPressed(ImGuiKey_Escape)){_deletePopupOpen=false;ImGui::CloseCurrentPopup();}
+            ImGui::EndPopup();
+        }
+        ImGui::PopID();//deletebtn
 		ImGui::PopStyleVar(2);
 
 		ImGui::SetCursorPos(oldCursorPos);
@@ -7069,6 +7083,7 @@ bool LayerManager::LayerInfo::DrawGUI(ImGuiStyle& style, int layerID)
 
 	}ImGui::PopID();
 
+    if(deleteConfirmed){auto* manager=_parent;manager->RemoveLayer(this);return false;}
 	return allowContinue;
 }
 
@@ -7711,12 +7726,14 @@ void LayerManager::LayerInfo::SpriteSelectGUI(SpriteType UISprite, float imgBtnW
         if(MaxUi::Button("Edges",{-1,0}))ImGui::OpenPopup("Edge blending");
         ToolTip("Feather or trim the exterior PNG edge for this image only.",&_parent->_appConfig->_hoverTimer);
         ImGui::EndDisabled();
-        ImGui::SetNextWindowSize({360*uiScale,0},ImGuiCond_Appearing);
-        if(ImGui::BeginPopup("Edge blending")){
+        const float edgeWidth=std::min(360*uiScale,ImGui::GetIO().DisplaySize.x-24*uiScale);
+        ImGui::SetNextWindowSize({edgeWidth,0},ImGuiCond_Always);
+        ImGui::SetNextWindowSizeConstraints({edgeWidth,0},{edgeWidth,ImGui::GetIO().DisplaySize.y-24*uiScale});
+        if(ImGui::BeginPopup("Edge blending",ImGuiWindowFlags_NoResize)){
             ImGui::Text("%s edge blending",spriteTitle.c_str());
             ImGui::TextWrapped("Fades the exterior transparency outline inward. Mouth details stay sharp; source PNG files stay unchanged. Values are source-image pixels.");
-            ImGui::SetNextItemWidth(-1);ImGui::SliderFloat("Edge feather",&slot.edgeFeather,0,256,"%.1f px");
-            ImGui::SetNextItemWidth(-1);ImGui::SliderFloat("Edge trim",&slot.edgeTrim,0,64,"%.1f px");
+            ImGui::TextUnformatted("Edge feather");ImGui::SetNextItemWidth(-1);ImGui::SliderFloat("##edgeFeather",&slot.edgeFeather,0,256,"%.1f px");
+            ImGui::TextUnformatted("Edge trim");ImGui::SetNextItemWidth(-1);ImGui::SliderFloat("##edgeTrim",&slot.edgeTrim,0,64,"%.1f px");
             if(const auto* texture=slot.EdgePreview()){auto rect=slot.Frame();float width=ImGui::GetContentRegionAvail().x,height=std::min(width,180*uiScale);float fit=std::min(width/std::max(1,rect.width),height/std::max(1,rect.height));auto p=ImGui::GetCursorScreenPos();auto draw=ImGui::GetWindowDrawList();for(float y=0;y<height;y+=12*uiScale)for(float x=0;x<width;x+=12*uiScale)draw->AddRectFilled({p.x+x,p.y+y},{p.x+std::min(x+12*uiScale,width),p.y+std::min(y+12*uiScale,height)},((int(x/(12*uiScale))+int(y/(12*uiScale)))%2)?IM_COL32(58,70,89,255):IM_COL32(31,42,58,255));
                 sf::Sprite preview(*texture,rect);ImGui::Image(preview,sf::Vector2f(rect.width*fit,rect.height*fit));}
             if(MaxUi::Button("Reset edges")){slot.edgeFeather=slot.edgeTrim=0;}ImGui::SameLine();if(MaxUi::Button("Done"))ImGui::CloseCurrentPopup();ImGui::EndPopup();
