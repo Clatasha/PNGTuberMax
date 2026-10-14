@@ -60,7 +60,7 @@ public:
    }
    if(!camera&&audio==MaxLipShape::PB)candidate=(available&(1u<<1))&&bank.targets[1].enabled?MaxLipShape::PB:MaxLipShape::Idle;
    else if(selected>=0)candidate=MaxMouthDefinitions[selected].shape;
-   else{Reset();if(camera)return {MaxLipShape::Idle,false,true,0};return fallback.Update(source,m,c,audio,speech,amount,dt,hold);}
+   else{Reset();return {MaxLipShape::Idle,camera?false:speech,camera,camera?0:amount};}
   }
   dt=std::isfinite(dt)?std::clamp(dt,0.f,.1f):0;hold=std::isfinite(hold)?std::clamp(hold,0.f,.15f):.04f;
   if(!primed||camera!=wasCamera||closed||!speech&&!camera||hold==0){current=pending=candidate;age=0;primed=true;}
