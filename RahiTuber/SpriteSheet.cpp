@@ -1,8 +1,9 @@
 #include "SpriteSheet.h"
 #include "MaxPlushRaster.h"
+#include "MaxSpriteEdges.h"
 
 // Duplicate saved sprite state; each copy owns fresh render targets and surface caches.
-SpriteSheet::SpriteSheet(const SpriteSheet& o):_frameSizeSetting(o._frameSizeSetting),_visible(o._visible),_loop(o._loop),_offsetFromIdle(o._offsetFromIdle),_preCropSize(o._preCropSize),_cropOffset(o._cropOffset),_optimised(o._optimised),_sprite(o._sprite),_spriteSize(o._spriteSize),_gridSize(o._gridSize),_maxFrame(o._maxFrame),_currentFrame(o._currentFrame),_fps(o._fps),_frameRects(o._frameRects),_playing(o._playing),_timer(o._timer),_tex(o._tex),_texSmooth(o._texSmooth),_texMan(o._texMan),_texPath(o._texPath),_loadTimer(o._loadTimer),_loadTimeout(o._loadTimeout),_spriteUnloaded(o._spriteUnloaded),_spriteLoadFinished(o._spriteLoadFinished){if(_texMan&&!_texPath.empty()){_tex=_texMan->GetTexture(_texPath,this);if(_tex)_sprite.setTexture(*_tex,false);}}
+SpriteSheet::SpriteSheet(const SpriteSheet& o):edgeFeather(o.edgeFeather),edgeTrim(o.edgeTrim),_frameSizeSetting(o._frameSizeSetting),_visible(o._visible),_loop(o._loop),_offsetFromIdle(o._offsetFromIdle),_preCropSize(o._preCropSize),_cropOffset(o._cropOffset),_optimised(o._optimised),_sprite(o._sprite),_spriteSize(o._spriteSize),_gridSize(o._gridSize),_maxFrame(o._maxFrame),_currentFrame(o._currentFrame),_fps(o._fps),_frameRects(o._frameRects),_playing(o._playing),_timer(o._timer),_tex(o._tex),_texSmooth(o._texSmooth),_texMan(o._texMan),_texPath(o._texPath),_loadTimer(o._loadTimer),_loadTimeout(o._loadTimeout),_spriteUnloaded(o._spriteUnloaded),_spriteLoadFinished(o._spriteLoadFinished){if(_texMan&&!_texPath.empty())_tex=_texMan->GetTexture(_texPath,this);if(_tex)_sprite.setTexture(*_tex,false);}
 
 bool SpriteSheet::PrepareDraw(bool forceVisible)
 {
@@ -40,7 +41,7 @@ bool SpriteSheet::PrepareDraw(bool forceVisible)
 			ReloadTexture();
 
 		_loadTimer.restart();
-        return _spriteLoadFinished && _tex;
+        if(_spriteLoadFinished&&_tex){PrepareEdges();return true;}return false;
 	}
 	else if (_loadTimeout > 0)
 	{
@@ -51,10 +52,20 @@ bool SpriteSheet::PrepareDraw(bool forceVisible)
 	}
     return false;
 }
+const sf::Texture* SpriteSheet::EdgePreview(){return PrepareDraw(true)?_sprite.getTexture():nullptr;}
+void SpriteSheet::PrepareEdges(){
+ if(!std::isfinite(edgeFeather))edgeFeather=0;if(!std::isfinite(edgeTrim))edgeTrim=0;
+ edgeFeather=std::clamp(edgeFeather,0.f,256.f);edgeTrim=std::clamp(edgeTrim,0.f,256.f);
+ if(edgeFeather==0&&edgeTrim==0){_sprite.setTexture(*_tex,false);if(_appliedFeather>0||_appliedTrim>0)++_plushRevision;_appliedFeather=edgeFeather;_appliedTrim=edgeTrim;return;}
+ bool changed=_edgeSourceHandle!=_tex->getNativeHandle()||_edgeRects!=_frameRects;
+ if(changed){_edgeSource=_tex->copyToImage();_edgeSourceHandle=_tex->getNativeHandle();_edgeRects=_frameRects;_edgeDistances.clear();auto size=_edgeSource.getSize();for(auto rect:_edgeRects)_edgeDistances.push_back(MaxSpriteEdgeDistances(_edgeSource.getPixelsPtr(),size.x,size.y,rect.left,rect.top,rect.width,rect.height));}
+ if(changed||edgeFeather!=_appliedFeather||edgeTrim!=_appliedTrim){_edgeImage=_edgeSource;auto size=_edgeImage.getSize();std::vector<unsigned char> pixels(_edgeImage.getPixelsPtr(),_edgeImage.getPixelsPtr()+std::size_t(size.x)*size.y*4);for(std::size_t i=0;i<_edgeRects.size();++i){auto rect=_edgeRects[i];MaxApplySpriteEdges(pixels.data(),size.x,size.y,rect.left,rect.top,rect.width,rect.height,_edgeDistances[i],edgeFeather,edgeTrim);}_edgeImage.create(size.x,size.y,pixels.data());if(!_edgeTexture.loadFromImage(_edgeImage)){_sprite.setTexture(*_tex,false);return;}_appliedFeather=edgeFeather;_appliedTrim=edgeTrim;++_plushRevision;}
+ _edgeTexture.setSmooth(_texSmooth);_sprite.setTexture(_edgeTexture,false);
+}
 bool SpriteSheet::ComposeFace(){
  if(faceOverlays.empty())return false;auto rect=_sprite.getTextureRect();if(rect.width<=0||rect.height<=0)return false;
  if(_faceComposite.getSize()!=sf::Vector2u(rect.width,rect.height)&&!_faceComposite.create(rect.width,rect.height))return false;
- _faceComposite.clear(sf::Color::Transparent);sf::Sprite body(*_tex,rect);sf::RenderStates state;state.blendMode=sf::BlendMode(sf::BlendMode::One,sf::BlendMode::OneMinusSrcAlpha);_faceComposite.draw(body,state);
+ _faceComposite.clear(sf::Color::Transparent);sf::Sprite body(*_sprite.getTexture(),rect);sf::RenderStates state;state.blendMode=sf::BlendMode(sf::BlendMode::One,sf::BlendMode::OneMinusSrcAlpha);_faceComposite.draw(body,state);
  for(auto& layer:faceOverlays)if(layer.texture)MaxFaceDraw(_faceComposite,*layer.texture,layer.settings,{layer.x*rect.width,layer.y*rect.height,layer.width*rect.width,layer.settings.height*rect.height},true,layer.contour);
  _faceComposite.display();_faceComposite.setSmooth(_texSmooth);return true;
 }
@@ -102,16 +113,16 @@ void SpriteSheet::DrawPlush(sf::RenderTarget* target,SpriteSheet& back,float rou
  int width=std::clamp(int(std::ceil(planeWidth*dx/8))*8,32,1536),height=std::clamp(int(std::ceil(rect.height*dy/8))*8,32,1536);
  auto originalSize=_plushImage.getSize();MaxPlushPixels original{_plushImage.getPixelsPtr(),int(originalSize.x),int(originalSize.y),rect.left,rect.top,rect.width,rect.height,&contour};
  if(_surfaceDepth.empty()||surfaceFlatness!=_surfaceDepthFlatness){_surfaceDepth=MaxPlushDepth(original,surfaceFlatness);_surfaceDepthFlatness=surfaceFlatness;++_surfaceShapeRevision;}
- auto& frontTexture=composed?_faceComposite.getTexture():*_tex;auto frontRect=composed?sf::IntRect(0,0,rect.width,rect.height):rect;
- if(_surface.Draw(frontTexture,frontRect,*back._tex,rearRect,_surfaceDepth,_surfaceShapeRevision,roundness,yaw,width,height,*_tex,rect)){
+ auto& frontTexture=composed?_faceComposite.getTexture():*_sprite.getTexture();auto frontRect=composed?sf::IntRect(0,0,rect.width,rect.height):rect;
+ if(_surface.Draw(frontTexture,frontRect,*back._sprite.getTexture(),rearRect,_surfaceDepth,_surfaceShapeRevision,roundness,yaw,width,height,*_tex,rect)){
  sf::Sprite projected(_surface.Texture());auto projectedSize=_surface.Texture().getSize();projected.setPosition((rect.width-planeWidth)*.5f,0);projected.setScale(planeWidth/projectedSize.x,float(rect.height)/projectedSize.y);projected.setColor(_sprite.getColor());DrawSurface(target,projected,face);return;}
  if(composed)_faceImage=_faceComposite.getTexture().copyToImage();
  if(width!=_projectedWidth||height!=_projectedHeight||yaw!=_projectedYaw||roundness!=_projectedRoundness||_plushRevision!=_projectedFrontRevision||back._plushRevision!=_projectedBackRevision){
   auto fs=_plushImage.getSize(),bs=back._plushImage.getSize();
-  MaxPlushPixels front{_plushImage.getPixelsPtr(),int(fs.x),int(fs.y),rect.left,rect.top,rect.width,rect.height,&contour};
+  MaxPlushPixels front{(edgeFeather>0||edgeTrim>0)?_edgeImage.getPixelsPtr():_plushImage.getPixelsPtr(),int(fs.x),int(fs.y),rect.left,rect.top,rect.width,rect.height,&contour};
   if(_surfaceDepth.empty()||surfaceFlatness!=_surfaceDepthFlatness){_surfaceDepth=MaxPlushDepth(front,surfaceFlatness);_surfaceDepthFlatness=surfaceFlatness;}front.depth=&_surfaceDepth;
   if(composed){front.pixels=_faceImage.getPixelsPtr();front.textureW=rect.width;front.textureH=rect.height;front.x=front.y=0;}
-  MaxPlushPixels rearImage{back._plushImage.getPixelsPtr(),int(bs.x),int(bs.y),rearRect.left,rearRect.top,rearRect.width,rearRect.height,&rear};
+  MaxPlushPixels rearImage{(back.edgeFeather>0||back.edgeTrim>0)?back._edgeImage.getPixelsPtr():back._plushImage.getPixelsPtr(),int(bs.x),int(bs.y),rearRect.left,rearRect.top,rearRect.width,rearRect.height,&rear};
   auto pixels=MaxPlushRaster(front,rearImage,roundness,yaw,width,height);if(pixels.empty()){DrawSurface(target,_sprite,states);return;}
   sf::Image projected;projected.create(width,height,pixels.data());
   if(_projectedTexture.getSize()!=sf::Vector2u(width,height)){if(!_projectedTexture.loadFromImage(projected)){DrawSurface(target,_sprite,states);return;}}else _projectedTexture.update(projected);
@@ -143,7 +154,7 @@ void SpriteSheet::LoadFromTexture(TextureManager* texMan, const std::string& tex
 		return;
 
 	_tex = tex;
-    _plushTextureHandle=0;_plushRows.clear();
+    _plushTextureHandle=0;_plushRows.clear();_edgeSourceHandle=0;
 	_texMan = texMan;
 	_texPath = texPath;
 
@@ -211,6 +222,7 @@ void SpriteSheet::UpdateSize()
 
 void SpriteSheet::UnloadTexture()
 {
+    _edgeSourceHandle=0;_edgeDistances.clear();_edgeRects.clear();
 	if (_texMan == nullptr || _spriteUnloaded)
 		return;
 
@@ -227,7 +239,7 @@ void SpriteSheet::UnloadTexture()
 
 void SpriteSheet::ReloadTexture(bool force, const std::string& updatePath)
 {
-    _plushTextureHandle=0;_plushRows.clear();
+    _plushTextureHandle=0;_plushRows.clear();_edgeSourceHandle=0;
 	if (!force && (_texMan == nullptr || !_spriteUnloaded))
 		return;
 
@@ -269,6 +281,7 @@ bool SpriteSheet::HasTexture()
 
 void SpriteSheet::Clear()
 {
+    _edgeSourceHandle=0;_edgeDistances.clear();_edgeRects.clear();
 	_texPath = "";
 	_tex = nullptr;
 	_spriteSize = { 0,0 };

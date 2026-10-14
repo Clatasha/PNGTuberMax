@@ -2477,6 +2477,7 @@ bool LayerManager::SaveLayers(const std::string& settingsFileName, bool makePort
 
 				sprElement->SetAttribute("path", sp.path.c_str());
 				SaveColor(sprElement, &doc, "tint", sp.tint);
+                sprElement->SetAttribute("edgeFeather",sp->edgeFeather);sprElement->SetAttribute("edgeTrim",sp->edgeTrim);
 
 				sprElement->SetAttribute("idleOffsetX", sp->_offsetFromIdle.x);
 				sprElement->SetAttribute("idleOffsetY", sp->_offsetFromIdle.y);
@@ -3069,6 +3070,8 @@ bool LayerManager::LoadLayers(const std::string& settingsFileName)
 						sp->LoadFromTexture(_textureMan, TryAbsolutePath(sp.path).string(), 1, 1, 1, 1, { -1, -1 }, &_errorMessage);
 
 					LoadColor(sprElement, &doc, "tint", sp.tint);
+                    sprElement->QueryFloatAttribute("edgeFeather",&sp->edgeFeather);sprElement->QueryFloatAttribute("edgeTrim",&sp->edgeTrim);
+                    sp->edgeFeather=std::isfinite(sp->edgeFeather)?std::clamp(sp->edgeFeather,0.f,256.f):0;sp->edgeTrim=std::isfinite(sp->edgeTrim)?std::clamp(sp->edgeTrim,0.f,256.f):0;
 
 					sprElement->QueryAttribute("idleOffsetX", &sp->_offsetFromIdle.x);
 					sprElement->QueryAttribute("idleOffsetY", &sp->_offsetFromIdle.y);
@@ -7691,6 +7694,23 @@ void LayerManager::LayerInfo::SpriteSelectGUI(SpriteType UISprite, float imgBtnW
 			}
 		}ImGui::PopID();
 		ToolTip("Edit the current image path (This will reload the sprite texture!)", &_parent->_appConfig->_hoverTimer);
+
+
+        auto& slot=*_sprites[UISprite];
+        ImGui::BeginDisabled(!slot.HasTexture());
+        if(MaxUi::Button("Edges",{-1,0}))ImGui::OpenPopup("Edge blending");
+        ToolTip("Feather or trim the exterior PNG edge for this image only.",&_parent->_appConfig->_hoverTimer);
+        ImGui::EndDisabled();
+        ImGui::SetNextWindowSize({360*uiScale,0},ImGuiCond_Appearing);
+        if(ImGui::BeginPopup("Edge blending")){
+            ImGui::Text("%s edge blending",spriteTitle.c_str());
+            ImGui::TextWrapped("Fades the exterior transparency outline inward. Mouth details stay sharp; source PNG files stay unchanged. Values are source-image pixels.");
+            ImGui::SetNextItemWidth(-1);ImGui::SliderFloat("Edge feather",&slot.edgeFeather,0,256,"%.1f px");
+            ImGui::SetNextItemWidth(-1);ImGui::SliderFloat("Edge trim",&slot.edgeTrim,0,64,"%.1f px");
+            if(const auto* texture=slot.EdgePreview()){auto rect=slot.Frame();float width=ImGui::GetContentRegionAvail().x,height=std::min(width,180*uiScale);float fit=std::min(width/std::max(1,rect.width),height/std::max(1,rect.height));auto p=ImGui::GetCursorScreenPos();auto draw=ImGui::GetWindowDrawList();for(float y=0;y<height;y+=12*uiScale)for(float x=0;x<width;x+=12*uiScale)draw->AddRectFilled({p.x+x,p.y+y},{p.x+std::min(x+12*uiScale,width),p.y+std::min(y+12*uiScale,height)},((int(x/(12*uiScale))+int(y/(12*uiScale)))%2)?IM_COL32(58,70,89,255):IM_COL32(31,42,58,255));
+                sf::Sprite preview(*texture,rect);ImGui::Image(preview,sf::Vector2f(rect.width*fit,rect.height*fit));}
+            if(MaxUi::Button("Reset edges")){slot.edgeFeather=slot.edgeTrim=0;}ImGui::SameLine();if(MaxUi::Button("Done"))ImGui::CloseCurrentPopup();ImGui::EndPopup();
+        }
 
 
 	}ImGui::PopID();

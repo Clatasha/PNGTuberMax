@@ -17,6 +17,9 @@
 class SpriteSheet
 {
 public:
+    float edgeFeather=0,edgeTrim=0;
+    const sf::Texture* EdgePreview();
+    sf::IntRect Frame() const {return _sprite.getTextureRect();}
     SpriteSheet()=default;
     SpriteSheet(const SpriteSheet& other);
 
@@ -165,7 +168,11 @@ public:
 	bool _optimised = false;
 
 private:
+    void PrepareEdges();
     bool PrepareDraw(bool forceVisible=false);
+    sf::Texture _edgeTexture;sf::Image _edgeSource,_edgeImage;
+    unsigned int _edgeSourceHandle=0;std::vector<sf::IntRect> _edgeRects;std::vector<std::vector<float>> _edgeDistances;
+    float _appliedFeather=-1,_appliedTrim=-1;
     const std::vector<MaxPlushSpan>& PlushContour();
     bool ComposeFace();sf::RenderTexture _faceComposite;sf::Image _faceImage;
     MaxPlushSurface _surface;std::uint64_t _surfaceShapeRevision=0;
