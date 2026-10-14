@@ -66,7 +66,7 @@ static void MouthBankChecks(const fs::path& dir){
   if(layer->_activeSprite!=layer->_sprites[SP_IDLE].get())throw std::runtime_error("Folder import leaves a stale active sprite pointer");
   layer->OptimiseSprites();if(layer->_sprites[SP_IDLE]->Size()!=sf::Vector2f(32,32)||layer->_sprites[SP_PH_W]->Size()!=sf::Vector2f(20,20))throw std::runtime_error("Portable optimisation changes matched mouth canvases");
   for(int i=0;i<13;++i)if(!layer->_sprites[MaxMouthSprites[i]]->HasTexture())throw std::runtime_error("A named mouth slot is empty after import");
-  layer->_lipHold=0;layer->_pivot={.7,.6};layer->_scale={2,2};
+  layer->_lipHold=0;layer->_pivot={.7,.6};layer->_scale={2,2};layer->_bounceType=LayerManager::LayerInfo::BounceNone;layer->_idleMotionEnabled=false;layer->_useBlinkFrame=false;
   auto draw=[&](MaxMouthSample pose){manager._faceTracker.available=true;manager._faceTracker.mouth=pose;layer->CalculateDraw(128,128,0,1,PH_NONE);};
   draw(layer->_mouthBank.Pose(0,layer->_mouthCalibration));auto full=layer->_activeSprite->getTransform();auto fullTop=full.transformPoint(0,0),fullBottom=full.transformPoint(32,32);
   draw(layer->_mouthBank.Pose(8,layer->_mouthCalibration));if(layer->_activeSprite!=layer->_sprites[SP_PH_W].get())throw std::runtime_error("Expanded camera selector does not reach rounded mouth");auto mouthTransform=layer->_activeSprite->getTransform();auto smallTop=mouthTransform.transformPoint(0,0),smallBottom=mouthTransform.transformPoint(20,20);
