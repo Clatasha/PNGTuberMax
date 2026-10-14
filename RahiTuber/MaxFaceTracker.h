@@ -1,5 +1,6 @@
 #pragma once
 #include "MaxRig.h"
+#include "MaxLipSync.h"
 #include <SFML/Graphics.hpp>
 #include <filesystem>
 #include <array>
@@ -26,6 +27,7 @@ public:
  if(!devices.empty()&&std::none_of(devices.begin(),devices.end(),[&](const auto& d){return d.first==device;}))device=devices.front().first;
 #endif
  }
+ MaxMouthSample mouth;unsigned MouthFrame()const{return sequence;}
  MaxRigPose pose;std::array<sf::Texture,3> textures,contours;bool available=false;int device=0;float smoothing=.15f;std::string status="Webcam stopped";
  ~MaxFaceTracker(){Stop();}
  bool Running()const{return running;}
@@ -57,7 +59,7 @@ public:
  if(job){CloseHandle(job);job=nullptr;}
  if(data){UnmapViewOfFile(data);data=nullptr;}if(map){CloseHandle(map);map=nullptr;}if(lock){CloseHandle(lock);lock=nullptr;}
 #endif
- running=false;available=false;pose={};raw={};neutral={};sequence=0;status="Webcam stopped";
+ running=false;available=false;pose={};raw={};neutral={};mouth={};sequence=0;status="Webcam stopped";
  }
  void Poll(){
  float dt=std::min(.1f,clock.restart().asSeconds());MaxRigPose target{};
@@ -66,15 +68,17 @@ public:
  DWORD acquired=running&&data?WaitForSingleObject(lock,0):WAIT_FAILED;
  if(acquired==WAIT_OBJECT_0||acquired==WAIT_ABANDONED){
  unsigned header[4];std::memcpy(header,data,16);
- if(header[0]&&header[0]!=0x52494733){available=false;status="Tracker version mismatch. Replace tracker.py from this update.";}
- if(header[0]==0x52494733&&header[1]!=sequence){sequence=header[1];fresh.restart();available=header[2]==1;
- if(available){std::memcpy(&raw,data+16,12);for(int i=0;i<3;++i){if(textures[i].getSize()!=sf::Vector2u(256,192)){textures[i].create(256,192);textures[i].setSmooth(true);}textures[i].update(data+64+i*256*192*4);
+ if(header[0]&&header[0]!=0x52494734){available=false;status="Tracker version mismatch. Replace tracker.py from this update.";}
+ if(header[0]==0x52494734&&header[1]!=sequence){sequence=header[1];fresh.restart();available=header[2]==1;
+ if(available){float values[3];std::memcpy(values,data+32,12);mouth={values[0],values[1],values[2]==1.f};if(!mouth.Usable())mouth={};std::memcpy(&raw,data+16,12);for(int i=0;i<3;++i){if(textures[i].getSize()!=sf::Vector2u(256,192)){textures[i].create(256,192);textures[i].setSmooth(true);}textures[i].update(data+64+i*256*192*4);
  if(contours[i].getSize()!=sf::Vector2u(256,192)){contours[i].create(256,192);contours[i].setSmooth(true);}
  std::vector<unsigned char> field(256*192*4,255);const auto* input=data+64+3*256*192*4+i*256*192;
  for(int n=0;n<256*192;++n)field[n*4]=field[n*4+1]=field[n*4+2]=input[n];contours[i].update(field.data());}status="Face tracked";}else status=header[2]==3?"Camera unavailable. Close another app using it, or choose a different input.":"Looking for your face";}
- ReleaseMutex(lock);if(fresh.getElapsedTime().asSeconds()>1)available=false;
+ ReleaseMutex(lock);
  }
 #endif
+ if(fresh.getElapsedTime().asSeconds()>.5f){if(available)status="Waiting for new tracking frames";available=false;}
+ if(!available)mouth={};
  if(available)target={std::clamp(raw.lean-neutral.lean,-35.f,35.f),std::clamp(raw.nod-neutral.nod,-35.f,35.f),std::clamp(raw.turn-neutral.turn,-50.f,50.f)};
  float a=1-std::exp(-dt/std::max(.02f,smoothing));pose.lean+=(target.lean-pose.lean)*a;pose.nod+=(target.nod-pose.nod)*a;pose.turn+=(target.turn-pose.turn)*a;
  }

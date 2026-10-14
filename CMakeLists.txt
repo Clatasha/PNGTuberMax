@@ -151,3 +151,6 @@ target_compile_features(MaxSpriteEdgeRenderTests PRIVATE cxx_std_17)
 target_include_directories(MaxSpriteEdgeRenderTests PRIVATE ${MAX_EDITOR_INCLUDES})
 target_compile_definitions(MaxSpriteEdgeRenderTests PRIVATE ${MAX_EDITOR_DEFINES})
 target_link_libraries(MaxSpriteEdgeRenderTests PRIVATE ${MAX_EDITOR_LIBRARIES})
+
+add_executable(MaxLipSyncTests tests/LipSyncTests.cpp)
+target_compile_features(MaxLipSyncTests PRIVATE cxx_std_17)

@@ -230,6 +230,10 @@ public:
 		bool _wasTalking = false;
 		bool _smoothTalkTint = false;
 		bool _usePhonemes = false;
+        int _lipSource=0;float _lipHold=.04f;
+        MaxMouthCalibration _mouthCalibration;MaxLipSelector _lipSelector;MaxLipResult _lipResult;MaxMouthCapture _mouthCapture;
+        sf::Clock _lipClock;unsigned _mouthFrame=0;
+        void DrawLipSyncGUI();
 		bool _separatePhonemeTints = false;
 
 		bool _useBlinkFrame = false;

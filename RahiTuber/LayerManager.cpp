@@ -1607,6 +1607,7 @@ LayerManager::LayerInfo* LayerManager::AddLayer(const LayerInfo* toCopy, bool is
 	{
 		newLayer = LayerInfo(*toCopy);
 		newLayer._name += " Copy";
+        newLayer._lipSelector.Reset();newLayer._mouthCapture={};newLayer._lipResult={};newLayer._mouthFrame=0;newLayer._lipClock.restart();
 
 		for (int sp = SP_IDLE; sp < SP_END; sp++)
 		{
@@ -2413,6 +2414,9 @@ bool LayerManager::SaveLayers(const std::string& settingsFileName, bool makePort
 			thisLayer->SetAttribute("smoothAmount", layer._smoothTalkFactorSize);
 			thisLayer->SetAttribute("restartOnSwap", layer._restartTalkAnim);
 			thisLayer->SetAttribute("usePhonemes", layer._usePhonemes);
+            thisLayer->SetAttribute("lipSource",layer._lipSource);thisLayer->SetAttribute("lipHold",layer._lipHold);
+            auto mouth=thisLayer->InsertNewChildElement("MouthCalibration");mouth->SetAttribute("captured",layer._mouthCalibration.captured);
+            for(int i=0;i<4;++i){auto pose=mouth->InsertNewChildElement("Pose");pose->SetAttribute("index",i);pose->SetAttribute("open",layer._mouthCalibration.poses[i].open);pose->SetAttribute("width",layer._mouthCalibration.poses[i].width);}
 			thisLayer->SetAttribute("separatePhonemeTints", layer._separatePhonemeTints);
 
 			thisLayer->SetAttribute("useBlink", layer._useBlinkFrame);
@@ -2963,6 +2967,9 @@ bool LayerManager::LoadLayers(const std::string& settingsFileName)
 				thisLayer->QueryAttribute("smoothAmount", &layer._smoothTalkFactorSize);
 				thisLayer->QueryAttribute("restartOnSwap", &layer._restartTalkAnim);
 				thisLayer->QueryAttribute("usePhonemes", &layer._usePhonemes);
+                thisLayer->QueryIntAttribute("lipSource",&layer._lipSource);layer._lipSource=std::clamp(layer._lipSource,0,2);
+                thisLayer->QueryFloatAttribute("lipHold",&layer._lipHold);layer._lipHold=std::isfinite(layer._lipHold)?std::clamp(layer._lipHold,0.f,.15f):.04f;
+                if(auto mouth=thisLayer->FirstChildElement("MouthCalibration")){mouth->QueryUnsignedAttribute("captured",&layer._mouthCalibration.captured);for(auto pose=mouth->FirstChildElement("Pose");pose;pose=pose->NextSiblingElement("Pose")){int i=-1;pose->QueryIntAttribute("index",&i);if(i>=0&&i<4){pose->QueryFloatAttribute("open",&layer._mouthCalibration.poses[i].open);pose->QueryFloatAttribute("width",&layer._mouthCalibration.poses[i].width);}}}layer._mouthCalibration.Sanitize();
 				thisLayer->QueryAttribute("separatePhonemeTints", &layer._separatePhonemeTints);
 
 				thisLayer->QueryAttribute("useBlink", &layer._useBlinkFrame);
@@ -5351,6 +5358,14 @@ void LayerManager::LayerInfo::CalculateDraw(float windowHeight, float windowWidt
 		screaming = true;
 
 	bool talking = !screaming && talkFactor > _talkThreshold;
+    float lipDt=_lipClock.restart().asSeconds();
+    auto& tracker=_parent->_faceTracker;auto mouth=tracker.available?tracker.mouth:MaxMouthSample{};
+    bool fresh=tracker.MouthFrame()!=_mouthFrame;_mouthFrame=tracker.MouthFrame();
+    if(_mouthCapture.Feed(mouth,fresh,lipDt,_mouthCalibration))_lipSelector.Reset();
+    if(_usePhonemes){
+        _lipResult=_lipSelector.Update(static_cast<MaxLipSource>(_lipSource),mouth,_mouthCalibration,static_cast<MaxLipShape>(phMask),talking||screaming,talkAmount,lipDt,_lipHold);
+        if(_lipResult.camera){phMask=static_cast<PhonemeMask>(_lipResult.shape);screaming=screaming&&_lipResult.talking;talking=_lipResult.talking&&!screaming;talkAmount=_lipResult.amount;}
+    }else{_lipSelector.Reset();_lipResult={};}
 	DetermineVisibleSprites(talking, screaming, activeSpriteCol, talkAmount, phMask);
 
 	_wasTalking = talking;
@@ -5436,6 +5451,34 @@ void LayerManager::LayerInfo::PostDraw()
 		_blinkTimer.restart();
 		_pendingBlinkRestart = false;
 	}
+}
+
+void LayerManager::LayerInfo::DrawLipSyncGUI(){
+    const char* modes[]={"Audio","Camera","Combined"};
+    ImGui::TextUnformatted("Lip-sync source");ImGui::SetNextItemWidth(-1);if(ImGui::Combo("##lipSource",&_lipSource,modes,3))_lipSelector.Reset();
+    if(_lipSource==0)return;
+    auto& tracker=_parent->_faceTracker;
+    ImGui::TextWrapped("%s",tracker.status.c_str());
+    if(!tracker.Running()&&MaxUi::Button("Start webcam for lip sync",{-1,0})){
+        if(!tracker.devicesScanned)tracker.RefreshDevices();
+        if(tracker.devices.empty())tracker.status="No physical webcam found. Select one in Preferences > Webcam rig.";
+        else tracker.Start(_parent->_appConfig->_appLocation);
+    }
+    ImGui::TextWrapped("%s: %s",_lipResult.camera?"Camera shape":"Audio fallback",MaxLipName(_lipResult.shape));
+    ImGui::TextWrapped(_lipSource==2?"Camera guides the shape. Audio helps with close E/S choices and pressed lips during speech.":"Mouth images follow visible movement, including silent expressions. Audio takes over if tracking is lost.");
+    ImGui::TextUnformatted("Shape smoothing");float ms=_lipHold*1000;ImGui::SetNextItemWidth(-1);if(ImGui::SliderFloat("##lipSmoothing",&ms,0,150,"%.0f ms"))_lipHold=ms/1000;
+    if(tracker.available&&tracker.mouth.Usable()){ImGui::ProgressBar(_mouthCalibration.Openness(tracker.mouth),{-1,0},"Mouth opening");}
+    if(ImGui::TreeNode("Mouth calibration")){
+        ImGui::TextWrapped("Hold each shape, then capture it. Keep holding for 0.6 seconds. Calibration belongs to this layer and saves with your project.");
+        const char* labels[]={"Closed lips","Open tall (A)","Wide (E)","Rounded (OO)"};
+        ImGui::BeginDisabled(!tracker.available||!tracker.mouth.Usable()||_mouthCapture.slot>=0);
+        for(int i=0;i<4;++i){ImGui::PushID(i);std::string label=std::string("Capture ")+labels[i]+((_mouthCalibration.captured&(1u<<i))?" [saved]":"");if(MaxUi::Button(label.c_str(),{-1,0})){_mouthCapture.Start(i);_mouthFrame=tracker.MouthFrame();_lipClock.restart();}ImGui::PopID();}
+        ImGui::EndDisabled();
+        if(_mouthCapture.slot>=0)ImGui::TextWrapped("Hold %s...",labels[_mouthCapture.slot]);
+        if(_mouthCapture.failed)ImGui::TextWrapped("Capture needs more tracked frames. Face the camera and try again.");
+        if(MaxUi::Button("Reset mouth calibration",{-1,0})){_mouthCalibration={};_mouthCapture={};_lipSelector.Reset();}
+        ImGui::TreePop();
+    }
 }
 
 void LayerManager::LayerInfo::DetermineVisibleSprites(bool talking, bool screaming, ImVec4& activeSpriteCol, float& talkAmount, PhonemeMask phMask)
@@ -5579,6 +5622,15 @@ void LayerManager::LayerInfo::DetermineVisibleSprites(bool talking, bool screami
 
 		_sprites[activeType]->SetColor(activeSpriteCol);
 	}
+
+    // Missing optional mouth images must not make the character disappear.
+    if(activeType!=SP_IDLE&&!_sprites[activeType]->HasTexture()){
+        if(phMask==PH_P)activeType=SP_IDLE;
+        else if(screaming&&_sprites[SP_SCREAM]->HasTexture())activeType=SP_SCREAM;
+        else if(talking&&_sprites[SP_TALK]->HasTexture())activeType=SP_TALK;
+        else activeType=SP_IDLE;
+        activeSpriteCol=_sprites[activeType].tint;_sprites[activeType]->SetColor(activeSpriteCol);
+    }
 
 	for (auto& sp : _sprites)
 		sp.second->_visible = false;
@@ -6102,7 +6154,8 @@ bool LayerManager::LayerInfo::DrawGUI(ImGuiStyle& style, int layerID)
 					ToolTip("Smoothly transition between the Idle and Talk tint colors", &_parent->_appConfig->_hoverTimer);
 
 					ImGui::Checkbox("Phoneme Detection", &_usePhonemes);
-					ToolTip("Use phoneme detection to switch sprites when talking", &_parent->_appConfig->_hoverTimer);
+					ToolTip("Choose mouth images using audio, camera, or both.", &_parent->_appConfig->_hoverTimer);
+                    if(_usePhonemes)DrawLipSyncGUI();
 
 					ImGui::Checkbox("Separate Tints", &_separatePhonemeTints);
 					ToolTip("Define separate tint colours for each phoneme", &_parent->_appConfig->_hoverTimer);

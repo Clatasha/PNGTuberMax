@@ -28,7 +28,7 @@ jobs:
       - name: Configure Windows x64
         run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 "-DCMAKE_POLICY_VERSION_MINIMUM=3.5" -DPNGMAX_TEST_OBS_CAPTURE=ON
       - name: Build app and frame test
-        run: cmake --build build --config Release --target RahiTuber MaxCameraFrameTests MaxWorkspaceTests MaxPlushMathTests MaxPlushRenderTests MaxEditorTests MaxPlushRasterTests MaxCameraNegotiationTests MaxObsCameraTests MaxRigTests MaxFaceBridgeTests MaxSurfaceRenderTests MaxFaceCropTests MaxWindowTransparencyTests MaxPreciseFaceRenderTests MaxPreviewInputTests MaxSpriteEdgeTests MaxSpriteEdgeRenderTests --parallel 4
+        run: cmake --build build --config Release --target RahiTuber MaxCameraFrameTests MaxWorkspaceTests MaxPlushMathTests MaxPlushRenderTests MaxEditorTests MaxPlushRasterTests MaxCameraNegotiationTests MaxObsCameraTests MaxRigTests MaxFaceBridgeTests MaxSurfaceRenderTests MaxFaceCropTests MaxWindowTransparencyTests MaxPreciseFaceRenderTests MaxPreviewInputTests MaxSpriteEdgeTests MaxSpriteEdgeRenderTests MaxLipSyncTests --parallel 4
       - name: Software OpenGL for rendering tests only
         shell: powershell
         run: |
@@ -69,6 +69,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'MaxSpriteEdgeTests.exe failed.' }
           .\build\Release\MaxSpriteEdgeRenderTests.exe
           if ($LASTEXITCODE -ne 0) { throw 'MaxSpriteEdgeRenderTests.exe failed.' }
+          .\build\Release\MaxLipSyncTests.exe
+          if ($LASTEXITCODE -ne 0) { throw 'MaxLipSyncTests.exe failed.' }
       - name: Package preview
         shell: powershell
         run: .\scripts\Package-Windows.ps1
@@ -79,7 +81,8 @@ jobs:
         run: |
           python scripts/Bundle-Tracker.py
           .\build\Release\MaxFaceBridgeTests.exe
-          python scripts/Package-Gyro-Update.py
+          if ($LASTEXITCODE -ne 0) { throw 'MaxFaceBridgeTests.exe failed.' }
+          python scripts/Package-Lip-Sync-Update.py
       - name: Test camera installation and real DirectShow delivery
         shell: powershell
         run: |
@@ -140,7 +143,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: PNGTuberMax-0.1.12-Gyro-Update
-          path: dist/updates/PNGTuberMax-Gyro-Update.zip
+          name: PNGTuberMax-0.1.17-Camera-Lip-Sync-Update
+          path: dist/updates/PNGTuberMax-Camera-Lip-Sync-Update.zip
           if-no-files-found: error
           retention-days: 90

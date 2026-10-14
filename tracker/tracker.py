@@ -25,6 +25,18 @@ def face_roll(points):
     direction=right-left
     return math.atan2(float(direction[1]),float(direction[0])) if np.linalg.norm(direction)>1 else 0.
 
+def mouth_measurements(landmarks, frame_width, frame_height, pose=(0,0,0)):
+    # Using 3D distances instead of screen rectangles avoids opening/width
+    # changes when the head rolls or turns. Z shares X's image scale.
+    points=np.asarray([(p.x*frame_width,p.y*frame_height,p.z*frame_width) for p in landmarks],np.float64)
+    if len(points)<292 or not np.isfinite(points).all() or abs(pose[2])>50 or abs(pose[1])>40:return (0.,0.,0.)
+    eye_span=np.linalg.norm(points[33]-points[263])
+    if eye_span<15:return (0.,0.,0.)
+    opening=float(np.linalg.norm(points[13]-points[14])/eye_span)
+    width=float(np.linalg.norm(points[61]-points[291])/eye_span)
+    good=0<=opening<=1.5 and .1<=width<=2
+    return (opening,width,1. if good else 0.)
+
 def cutout(frame, points, indices, contour=None, previous=None, roll=0.):
     pts = np.array([points[i] for i in indices], dtype=np.float32)
     # Measure the crop in a level face basis, then map its corners back to the
@@ -87,6 +99,25 @@ def gyro_test():
     assert np.ptp(neutral[2][2][:,1])>np.ptp(neutral[0][2][:,1])*1.9
     print('PASS: shared gyro stabilization for both eyes and mouth at +/-5,15,30,45 degrees; source pixels and contours agree')
 
+def mouth_test():
+    from types import SimpleNamespace
+    points=np.zeros((478,3),np.float64)
+    points[33]=(-100,0,0);points[263]=(100,0,0)
+    points[13]=(0,100,0);points[14]=(0,160,0)
+    points[61]=(-70,120,0);points[291]=(70,120,0)
+    def measure(coords,pose=(0,0,0)):
+        lm=[SimpleNamespace(x=(p[0]+320)/640,y=(p[1]+200)/480,z=p[2]/640) for p in coords]
+        return mouth_measurements(lm,640,480,pose)
+    baseline=measure(points);assert np.allclose(baseline,(.3,.7,1.))
+    for degrees in (-40,-15,15,40):
+        t=math.radians(degrees);c,s=math.cos(t),math.sin(t)
+        for rot in ([[c,-s,0],[s,c,0],[0,0,1]],[[c,0,s],[0,1,0],[-s,0,c]],[[1,0,0],[0,c,-s],[0,s,c]]):
+            assert np.allclose(measure(points@np.asarray(rot).T),baseline)
+    assert measure(points,(0,0,55))[2]==0
+    assert measure(points*.01)[2]==0
+    bad=points.copy();bad[13,0]=float('nan');assert measure(bad)[2]==0
+    print('PASS: camera mouth opening/width invariant to synthetic roll, yaw and pitch; occluded/small/invalid face rejection')
+
 def self_test():
     with mp.solutions.face_mesh.FaceMesh(static_image_mode=True,refine_landmarks=True,max_num_faces=1) as detector:
         assert not detector.process(np.zeros((128,128,3),np.uint8)).multi_face_landmarks
@@ -101,6 +132,7 @@ def self_test():
     assert closed[96,128]>128 and closed[80,128]<128
     assert np.count_nonzero(closed>128)<np.count_nonzero(opened>128)/4
     gyro_test()
+    mouth_test()
     print('PASS: eyelid/open-mouth contours preserve expression and exclude surrounding skin')
     print('PASS: bundled face model loads; full-resolution source crops for the in-app mask editor')
 
@@ -116,13 +148,14 @@ def run(args):
     if camera is not None:
         camera.set(cv2.CAP_PROP_FRAME_WIDTH,640);camera.set(cv2.CAP_PROP_FRAME_HEIGHT,480)
     sequence=0
-    def publish(status, pose=(0,0,0), crops=None, fields=None):
+    def publish(status, pose=(0,0,0), crops=None, fields=None, mouth=(0,0,0)):
         nonlocal sequence
         sequence+=1
-        header=struct.pack('<IIIIfff',0x52494733,sequence,status,0,*pose).ljust(64,b'\0')
+        header=struct.pack('<IIIIfff',0x52494734,sequence,status,0,*pose).ljust(64,b'\0')
         if kernel.WaitForSingleObject(mutex,100) in (0,128):
             try:
                 memory.seek(0);memory.write(header[:28])
+                memory.seek(32);memory.write(struct.pack('<fff',*mouth))
                 if crops:
                     memory.seek(64);memory.write(b''.join(crops))
                     if fields:memory.write(b''.join(fields))
@@ -133,7 +166,10 @@ def run(args):
     if args.test_stream:
         pixels=bytes((35,70,100,128))*(256*192)
         field=distance_field([(60,96),(90,72),(166,72),(196,96),(166,120),(90,120)])
-        while active():publish(1,(12.,7.,-9.),[pixels]*3,[field]*3);time.sleep(1/30)
+        while active():
+            if sequence%75<45:publish(1,(12.,7.,-9.),[pixels]*3,[field]*3,(.24,.64,1.))
+            else:publish(2)
+            time.sleep(1/30)
         memory.close();kernel.CloseHandle(ctypes.c_void_p(mutex));return
     if not camera.isOpened():
         publish(3)
@@ -169,7 +205,7 @@ def run(args):
                 for i in range(3):
                     image,field,polygon=cutout(frame,points,regions[i],CONTOURS[i],previous[i],roll)
                     crops.append(image);fields.append(field);previous[i]=polygon
-                publish(1,pose,crops,fields)
+                publish(1,pose,crops,fields,mouth_measurements(landmarks,w,h,pose))
     finally:
         camera.release();memory.close();kernel.CloseHandle(ctypes.c_void_p(mutex))
 

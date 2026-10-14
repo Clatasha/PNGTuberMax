@@ -1,4 +1,4 @@
-PNGTUBER MAX by Clatasha — 0.1.16 DEVELOPMENT PREVIEW
+PNGTUBER MAX by Clatasha — 0.1.17 DEVELOPMENT PREVIEW
 
 Extract the complete folder and open PNGTuberMax.exe. Keep the resources and DLLs together.
 Requires Windows 10/11 x64 with .NET Framework 4.8. No OBS or another PNGTuber app is needed.
@@ -147,3 +147,6 @@ Start/Stop camera (webcam tracking) and Start/Stop virtual camera are side by si
 
 0.1.16 PER-IMAGE EDGE BLENDING
 Each sprite slot has Edges controls for exterior-outline feather and inward trim, including Idle/Talk/Blink and the individual phonemes in More Talk settings. Values default to zero, save per slot, and reset without altering source PNGs. Sharp interior detail and premultiplied alpha are preserved. Derived textures and frame distance fields are cached.
+
+0.1.17 CAMERA-ASSISTED LIP SYNC
+More Talk settings now includes Audio, Camera and Combined sources for the existing five mouth shapes. Enable Use Talk Sprite and Phoneme Detection on the mouth layer. Start the webcam, then optionally capture closed, tall/open, wide and rounded shapes in Mouth calibration. Shape smoothing prevents rapid switching; closed lips respond immediately. Mode, smoothing and calibration save per layer. Camera modes fall back to audio when tracking is lost; missing images fall back to Talk/Idle. The app and tracker.py must be updated together (RIG4 mouth measurement contract).
