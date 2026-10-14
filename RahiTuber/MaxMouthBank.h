@@ -40,7 +40,8 @@ public:
  MaxLipResult Update(MaxLipSource source,MaxMouthSample m,const MaxMouthCalibration& c,const MaxMouthBank& bank,unsigned available,
                      MaxLipShape audio,bool speech,float amount,float dt,float hold){
   bool camera=source!=MaxLipSource::Audio&&m.Usable();float span=std::max(.08f,c.poses[1].open-c.poses[0].open),ws=std::max(.12f,c.poses[2].width-c.poses[3].width);
-  bool closed=camera&&m.open<=c.poses[0].open+std::max(.012f,span*.055f)+(current==MaxLipShape::Idle||current==MaxLipShape::PB?.004f:0);
+  // A narrow opening with visible teeth can be F/S, rather than resting lips.
+  bool closed=camera&&!(m.details&&m.teeth>.2f)&&m.open<=c.poses[0].open+std::max(.012f,span*.055f)+(current==MaxLipShape::Idle||current==MaxLipShape::PB?.004f:0);
   MaxLipShape candidate=MaxLipShape::Idle;
   if(closed)candidate=source==MaxLipSource::Combined&&speech&&(available&(1u<<1))&&bank.targets[1].enabled?MaxLipShape::PB:MaxLipShape::Idle;
   else if(camera||speech){
