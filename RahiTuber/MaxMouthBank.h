@@ -69,3 +69,10 @@ public:
   return {current,talking,camera,camera?(talking?std::max(.1f,c.Openness(m)):0):amount};
  }
 };
+
+struct MaxMouthCanvasAdjustment {float scale=1;std::array<float,2> offset{{0,0}};};
+inline MaxMouthCanvasAdjustment MaxMouthMatchCanvas(float rw,float rh,std::array<float,4> reference,float sw,float sh,std::array<float,4> source){
+ MaxMouthCanvasAdjustment result;if(rw<=0||rh<=0||sw<=0||sh<=0||reference[2]<=0||source[2]<=0||rw==sw&&rh==sh)return result;
+ float fit=reference[2]/source[2],canvasFit=std::min(rw/sw,rh/sh);result.scale=std::clamp(fit/canvasFit,.05f,8.f);
+ fit=canvasFit*result.scale;result.offset={{fit*(source[0]+source[2]*.5f-sw*.5f)-(reference[0]+reference[2]*.5f-rw*.5f),fit*(source[1]+source[3]*.5f-sh*.5f)-(reference[1]+reference[3]*.5f-rh*.5f)}};return result;
+}

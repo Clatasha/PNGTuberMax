@@ -2483,6 +2483,7 @@ bool LayerManager::SaveLayers(const std::string& settingsFileName, bool makePort
 
 				sprElement->SetAttribute("path", sp.path.c_str());
 				SaveColor(sprElement, &doc, "tint", sp.tint);
+                sprElement->SetAttribute("canvasMatchScale",sp.canvasMatchScale);sprElement->SetAttribute("canvasMatchOffsetX",sp.canvasMatchOffset.x);sprElement->SetAttribute("canvasMatchOffsetY",sp.canvasMatchOffset.y);
                 sprElement->SetAttribute("edgeFeather",sp->edgeFeather);sprElement->SetAttribute("edgeTrim",sp->edgeTrim);
 
 				sprElement->SetAttribute("idleOffsetX", sp->_offsetFromIdle.x);
@@ -3081,6 +3082,7 @@ bool LayerManager::LoadLayers(const std::string& settingsFileName)
 						sp->LoadFromTexture(_textureMan, TryAbsolutePath(sp.path).string(), 1, 1, 1, 1, { -1, -1 }, &_errorMessage);
 
 					LoadColor(sprElement, &doc, "tint", sp.tint);
+                    sprElement->QueryFloatAttribute("canvasMatchScale",&sp.canvasMatchScale);sprElement->QueryFloatAttribute("canvasMatchOffsetX",&sp.canvasMatchOffset.x);sprElement->QueryFloatAttribute("canvasMatchOffsetY",&sp.canvasMatchOffset.y);sp.canvasMatchScale=std::isfinite(sp.canvasMatchScale)?std::clamp(sp.canvasMatchScale,.05f,8.f):1;for(float* value:{&sp.canvasMatchOffset.x,&sp.canvasMatchOffset.y})if(!std::isfinite(*value))*value=0;
                     sprElement->QueryFloatAttribute("edgeFeather",&sp->edgeFeather);sprElement->QueryFloatAttribute("edgeTrim",&sp->edgeTrim);
                     sp->edgeFeather=std::isfinite(sp->edgeFeather)?std::clamp(sp->edgeFeather,0.f,256.f):0;sp->edgeTrim=std::isfinite(sp->edgeTrim)?std::clamp(sp->edgeTrim,0.f,256.f):0;
 
@@ -5390,10 +5392,10 @@ void LayerManager::LayerInfo::CalculateDraw(float windowHeight, float windowWidt
 
 	sf::Vector2<double> centerToPivot(_pivot - sf::Vector2<double>(0.5, 0.5));
 	sf::Vector2<double> idleCenterToPivotPX(centerToPivot * sf::Vector2<double>(_sprites[SP_IDLE]->Size()));
-	float mouthFit=1;
+	float mouthFit=1;sf::Vector2f mouthAnchor;
     if(_matchMouthCanvas){bool isMouth=_activeSprite==_sprites[SP_IDLE].get()||_activeSprite==_sprites[SP_TALK].get();for(int i=0;i<13;++i)isMouth=isMouth||_activeSprite==_sprites[MaxMouthSprites[i]].get()||_activeSprite==_sprites[MaxMouthScreamSprites[i]].get();
-        if(isMouth){auto reference=_sprites[SP_IDLE]->_optimised?_sprites[SP_IDLE]->_preCropSize:_sprites[SP_IDLE]->Size();auto canvas=_activeSprite->_optimised?_activeSprite->_preCropSize:_activeSprite->Size();if(reference.x>0&&reference.y>0&&canvas.x>0&&canvas.y>0)mouthFit=std::min(reference.x/canvas.x,reference.y/canvas.y);}}
-    sf::Vector2<double> pivot(.5*sf::Vector2<double>(_activeSprite->Size())+(sf::Vector2<double>(_activeSprite->_offsetFromIdle)+idleCenterToPivotPX)/double(mouthFit));
+        if(isMouth){auto reference=_sprites[SP_IDLE]->_optimised?_sprites[SP_IDLE]->_preCropSize:_sprites[SP_IDLE]->Size();auto canvas=_activeSprite->_optimised?_activeSprite->_preCropSize:_activeSprite->Size();if(reference.x>0&&reference.y>0&&canvas.x>0&&canvas.y>0)mouthFit=std::min(reference.x/canvas.x,reference.y/canvas.y);for(auto& entry:_sprites)if(entry.second.get()==_activeSprite){mouthFit*=entry.second.canvasMatchScale;mouthAnchor=entry.second.canvasMatchOffset;break;}}}
+    sf::Vector2<double> pivot(.5*sf::Vector2<double>(_activeSprite->Size())+(sf::Vector2<double>(_activeSprite->_offsetFromIdle+mouthAnchor)+idleCenterToPivotPX)/double(mouthFit));
 
 	bool hasParent = !(_motionParent == "" || _motionParent == "-1");
 	if (hasParent)
@@ -5476,6 +5478,11 @@ int LayerManager::LayerInfo::ImportMouthFolder(const fs::path& folder){
         std::string error;replacement->LoadFromTexture(_parent->_textureMan,path.string(),1,1,1,1,{-1,-1},&error);if(!replacement->getTexture()){++failed;continue;}
         replacement->setSmooth(_scaleFiltering);slot.sprite=replacement;slot.path=path.string();++count;if(i==-2)idleLoaded=true;else{loaded|=1u<<i;_mouthBank.targets[i].enabled=true;}
     }
+    if(count&&_sprites[SP_IDLE]->getTexture()){
+        auto outline=[](const sf::Image& image){auto size=image.getSize();int left=size.x,top=size.y,right=-1,bottom=-1;auto pixels=image.getPixelsPtr();for(unsigned y=0;y<size.y;++y)for(unsigned x=0;x<size.x;++x)if(pixels[(std::size_t(y)*size.x+x)*4+3]>8){left=std::min(left,int(x));top=std::min(top,int(y));right=std::max(right,int(x));bottom=std::max(bottom,int(y));}return std::array<float,4>{{float(left),float(top),float(std::max(0,right-left+1)),float(std::max(0,bottom-top+1))}};};
+        auto image=_sprites[SP_IDLE]->getTexture()->copyToImage();auto reference=image.getSize();auto bounds=outline(image);
+        for(int i=0;i<13;++i)if(loaded&(1u<<i)){auto& slot=_sprites[MaxMouthSprites[i]];auto source=slot->getTexture()->getSize();if(source==reference){slot.canvasMatchScale=1;slot.canvasMatchOffset={};continue;}auto fit=MaxMouthMatchCanvas(float(reference.x),float(reference.y),bounds,float(source.x),float(source.y),outline(slot->getTexture()->copyToImage()));slot.canvasMatchScale=fit.scale;slot.canvasMatchOffset={fit.offset[0],fit.offset[1]};}
+    }
     if(count){_expandedMouths=true;_matchMouthCanvas=true;_usePhonemes=true;_swapWhenTalking=true;if(_lipSource==0)_lipSource=2;_mouthPreview=-1;_bankSelector.Reset();}
     _mouthImportStatus=count?"Imported "+std::to_string(count)+" images. Save your project to keep them.":"No matching mouth PNGs found. Extract the ZIP and choose a PNG inside its mouth folder.";
     if(failed)_mouthImportStatus+=" "+std::to_string(failed)+" images could not be loaded.";
@@ -5499,6 +5506,7 @@ void LayerManager::LayerInfo::DrawMouthManager(bool scream,float imgBtnWidth,flo
     }
     auto type=scream?MaxMouthScreamSprites[selected]:MaxMouthSprites[selected];
     SpriteSelectGUI(type,std::max(imgBtnWidth,128*uiScale),animBtnWidth,btnColor,uiScale,false,!_separatePhonemeTints);
+    if(_matchMouthCanvas&&ImGui::TreeNode("Size matching")){auto& slot=_sprites[type];ImGui::TextUnformatted("Canvas scale adjustment");ImGui::SetNextItemWidth(-1);ImGui::SliderFloat("##canvasMatchScale",&slot.canvasMatchScale,.25f,4.f,"%.3f");ImGui::TextWrapped("Mixed canvas imports match the visible mouth patch and centre. Same-size images retain their intended proportions. Use Offset settings for manual placement.");if(MaxUi::Button("Reset size matching",{-1,0})){slot.canvasMatchScale=1;slot.canvasMatchOffset={};}ImGui::TreePop();}
     if(!scream){
         ImGui::BeginDisabled(!_sprites[type]->HasTexture());
         if(MaxUi::Button("Preview mouth for 3 seconds",{-1,0})){_mouthPreview=selected;_mouthPreviewSeconds=3;}
@@ -8185,7 +8193,7 @@ LayerManager::SpriteInfo LayerManager::SpriteInfo::Copy() const
 	copy.spriteOpen = spriteOpen;
 	copy.oldSpriteOpen = oldSpriteOpen;
 	copy.path = path;
-	copy.tint = tint;
+	copy.tint = tint;copy.canvasMatchScale=canvasMatchScale;copy.canvasMatchOffset=canvasMatchOffset;
 	copy.sprite = std::make_shared<SpriteSheet>(*sprite);
 
 	return std::move(copy);

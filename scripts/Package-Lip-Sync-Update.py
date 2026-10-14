@@ -32,7 +32,9 @@ USE AND CALIBRATE
 Select Combined lip sync and start the physical webcam.
 The Mouth shape dropdown now offers all 13 slots. Each keeps its own image,
 animation, offset, tint, edge feather and trim settings.
-Match mouth canvas sizes aligns mixed 2048/1254 canvases by scale and centre.
+Match mouth canvas sizes aligns mixed 2048/1254 images by their visible mouth
+patch size and centre. Same-size images retain their intended proportions.
+Size matching offers a manual scale adjustment; Offset settings fine-tunes placement.
 Use the four basic calibration poses if needed. For a closer match, choose a
 mouth slot, make that expression, and Capture camera pose for this mouth.
 Hold it for 0.6 seconds. Opening, width and optional teeth/tongue colour cues

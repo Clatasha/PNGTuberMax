@@ -150,6 +150,7 @@ public:
 		std::string path = u8"";
 		std::shared_ptr<SpriteSheet> sprite = std::make_shared<SpriteSheet>();
 		ImVec4 tint = { 1,1,1,1 };
+        float canvasMatchScale=1;sf::Vector2f canvasMatchOffset;
 
 		bool importOpen = false;
 		bool spriteOpen = false;

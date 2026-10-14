@@ -4,6 +4,7 @@
 #include <set>
 static void check(bool b,const char* why){if(!b)throw std::runtime_error(why);}
 int main(){try{
+ auto fit=MaxMouthMatchCanvas(2048,2048,{{400,800,1300,450}},1254,1254,{{40,520,1160,330}});float scale=2048.f/1254*fit.scale;check(std::abs(1160*scale-1300)<.01f,"Mixed canvases do not match visible patch width");check(std::abs(scale*(520+165-627)-fit.offset[1]-(800+225-1024))<.01f,"Mixed canvases do not match visible patch anchor");check(MaxMouthMatchCanvas(2048,2048,{{400,800,1300,450}},2048,2048,{{600,500,800,1200}}).scale==1,"Same-size narrow shapes lose artistic proportions");
  MaxMouthCalibration c;MaxMouthBank bank;MaxMouthBankSelector selector;constexpr unsigned all=(1u<<13)-1;
  std::set<int> masks;for(int i=0;i<13;++i){masks.insert(int(MaxMouthDefinitions[i].shape));check(MaxMouthIndex(MaxMouthDefinitions[i].shape)==i,"Shape lookup loses a slot");check(MaxMouthFileSlot(std::string("mouth_")+MaxMouthDefinitions[i].stem)==i,"Folder import does not map canonical filename");selector.Reset();auto p=bank.Pose(i,c);auto r=selector.Update(MaxLipSource::Combined,p,c,bank,all,MaxLipShape::Idle,i==1,.5f,1.f/60,0);if(r.shape!=MaxMouthDefinitions[i].shape)throw std::runtime_error(std::string("Suggested camera pose fails for ")+MaxMouthDefinitions[i].label);}
  check(masks.size()==13,"Shape masks collide");check(MaxMouthFileSlot("Mouth_T")==11&&MaxMouthFileSlot("mouth_P")==1&&MaxMouthFileSlot("mouth_idle")==-2&&MaxMouthFileSlot("unrelated")==-1,"Case, aliases, or unknown filenames fail");
