@@ -61,12 +61,15 @@ static void MouthBankChecks(const fs::path& dir){
  for(int i=0;i<13;++i){int size=i==8||i==10||i==11||i==12?20:32;asset.create(size,size,{80,140,200,255});asset.saveToFile((folder/(std::string(i==11?"Mouth_":"mouth_")+MaxMouthDefinitions[i].stem+".png")).string());}
  {AppConfig app;UIConfig ui;app._appLocation=fs::absolute("RahiTuber").string()+"/";LayerManager manager;manager.Init(&app,&ui);auto* layer=manager.AddLayer();
   if(layer->_expandedMouths||layer->_matchMouthCanvas||layer->_lipSource!=0)throw std::runtime_error("Legacy layer defaults changed");
+  layer->_sprites[SP_IDLE]->LoadFromTexture(&app._textureMan,(folder/"mouth_idle.png").string(),1,1,1,12);layer->_activeSprite=layer->_sprites[SP_IDLE].get();
   if(layer->ImportMouthFolder(folder)!=14||!layer->_expandedMouths||!layer->_matchMouthCanvas||layer->_lipSource!=2)throw std::runtime_error("Folder import failed to map all thirteen mouths plus idle");
+  if(layer->_activeSprite!=layer->_sprites[SP_IDLE].get())throw std::runtime_error("Folder import leaves a stale active sprite pointer");
+  layer->OptimiseSprites();if(layer->_sprites[SP_IDLE]->Size()!=sf::Vector2f(32,32)||layer->_sprites[SP_PH_W]->Size()!=sf::Vector2f(20,20))throw std::runtime_error("Portable optimisation changes matched mouth canvases");
   for(int i=0;i<13;++i)if(!layer->_sprites[MaxMouthSprites[i]]->HasTexture())throw std::runtime_error("A named mouth slot is empty after import");
   layer->_lipHold=0;layer->_pivot={.7,.6};layer->_scale={2,2};
   auto draw=[&](MaxMouthSample pose){manager._faceTracker.available=true;manager._faceTracker.mouth=pose;layer->CalculateDraw(128,128,0,1,PH_NONE);};
   draw(layer->_mouthBank.Pose(0,layer->_mouthCalibration));auto full=layer->_activeSprite->getTransform();auto fullTop=full.transformPoint(0,0),fullBottom=full.transformPoint(32,32);
-  draw(layer->_mouthBank.Pose(8,layer->_mouthCalibration));if(layer->_activeSprite!=layer->_sprites[SP_PH_W].get())throw std::runtime_error("Expanded camera selector does not reach rounded mouth");auto small=layer->_activeSprite->getTransform();auto smallTop=small.transformPoint(0,0),smallBottom=small.transformPoint(20,20);
+  draw(layer->_mouthBank.Pose(8,layer->_mouthCalibration));if(layer->_activeSprite!=layer->_sprites[SP_PH_W].get())throw std::runtime_error("Expanded camera selector does not reach rounded mouth");auto mouthTransform=layer->_activeSprite->getTransform();auto smallTop=mouthTransform.transformPoint(0,0),smallBottom=mouthTransform.transformPoint(20,20);
   if(std::hypot(fullTop.x-smallTop.x,fullTop.y-smallTop.y)>.01f||std::hypot(fullBottom.x-smallBottom.x,fullBottom.y-smallBottom.y)>.01f)throw std::runtime_error("Mixed canvas sizes change mouth scale or anchor");
   auto childId=layer->_id;auto parentId=manager.AddLayer()->_id;layer=manager.GetLayer(childId);auto* parent=manager.GetLayer(parentId);parent->_sprites[SP_IDLE]->LoadFromTexture(&app._textureMan,(folder/"mouth_idle.png").string(),1,1,1,12);parent->_activeSprite=parent->_sprites[SP_IDLE].get();parent->_activeSprite->_visible=true;parent->_attachmentBase=sf::Transform::Identity;parent->_activeSprite->setPosition({0,0});
   layer->_rigAttachLayer=parentId;layer->_attachmentBound=true;layer->_attachmentParentBase=sf::Transform::Identity;

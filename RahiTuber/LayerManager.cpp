@@ -5476,7 +5476,7 @@ int LayerManager::LayerInfo::ImportMouthFolder(const fs::path& folder){
     for(const auto& path:files){int i=MaxMouthFileSlot(path.stem().string());if(i==-1||i==-2&&idleLoaded||i>=0&&(loaded&(1u<<i)))continue;auto type=i==-2?SP_IDLE:MaxMouthSprites[i];auto& slot=_sprites[type];auto replacement=std::make_shared<SpriteSheet>();
         replacement->edgeFeather=slot->edgeFeather;replacement->edgeTrim=slot->edgeTrim;replacement->_offsetFromIdle=slot->_offsetFromIdle;
         std::string error;replacement->LoadFromTexture(_parent->_textureMan,path.string(),1,1,1,1,{-1,-1},&error);if(!replacement->getTexture()){++failed;continue;}
-        replacement->setSmooth(_scaleFiltering);slot.sprite=replacement;slot.path=path.string();++count;if(i==-2)idleLoaded=true;else{loaded|=1u<<i;_mouthBank.targets[i].enabled=true;}
+        replacement->setSmooth(_scaleFiltering);bool wasActive=_activeSprite==slot.get();slot.sprite=replacement;if(wasActive)_activeSprite=replacement.get();slot.path=path.string();++count;if(i==-2)idleLoaded=true;else{loaded|=1u<<i;_mouthBank.targets[i].enabled=true;}
     }
     if(count&&_sprites[SP_IDLE]->getTexture()){
         auto outline=[](const sf::Image& image){auto size=image.getSize();int left=size.x,top=size.y,right=-1,bottom=-1;auto pixels=image.getPixelsPtr();for(unsigned y=0;y<size.y;++y)for(unsigned x=0;x<size.x;++x)if(pixels[(std::size_t(y)*size.x+x)*4+3]>8){left=std::min(left,int(x));top=std::min(top,int(y));right=std::max(right,int(x));bottom=std::max(bottom,int(y));}return std::array<float,4>{{float(left),float(top),float(std::max(0,right-left+1)),float(std::max(0,bottom-top+1))}};};
@@ -5550,7 +5550,7 @@ void LayerManager::LayerInfo::DrawLipSyncGUI(){
         if(tracker.devices.empty())tracker.status="No physical webcam found. Select one in Preferences > Webcam rig.";
         else tracker.Start(_parent->_appConfig->_appLocation);
     }
-    ImGui::TextWrapped("%s: %s",_lipResult.camera?"Camera shape":"Audio fallback",MaxLipName(_lipResult.shape));
+    ImGui::TextWrapped("%s: %s",_mouthPreview>=0?"Preview":_lipResult.camera?"Camera shape":"Audio fallback",MaxLipName(_lipResult.shape));
     ImGui::TextWrapped(_lipSource==2?"Camera guides the shape. Audio helps with close E/S choices and pressed lips during speech.":"Mouth images follow visible movement, including silent expressions. Audio takes over if tracking is lost.");
     ImGui::TextUnformatted("Shape smoothing");float ms=_lipHold*1000;ImGui::SetNextItemWidth(-1);if(ImGui::SliderFloat("##lipSmoothing",&ms,0,150,"%.0f ms"))_lipHold=ms/1000;
     if(tracker.available&&tracker.mouth.Usable()){ImGui::ProgressBar(_mouthCalibration.Openness(tracker.mouth),{-1,0},"Mouth opening");}
@@ -7980,6 +7980,8 @@ void LayerManager::LayerInfo::SyncAnims(bool sync)
 
 void LayerManager::LayerInfo::OptimiseSprites(bool skipOptimised)
 {
+    // Matched mouth slots retain source canvases and their shared pixel anchor.
+    if(_matchMouthCanvas)return;
 	sf::Vector2f idleToCenterOrig;
 	sf::Vector2f idleToCenterNew;
 	sf::Vector2<double> originalPivot(_pivot);
